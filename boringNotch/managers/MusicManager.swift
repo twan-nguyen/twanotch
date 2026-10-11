@@ -56,11 +56,11 @@ class MusicManager: ObservableObject {
 
     private var artworkData: Data? = nil
 
-    // Store last values at the time artwork was changed
-    private var lastArtworkTitle: String = "I'm Handsome"
-    private var lastArtworkArtist: String = "Me"
-    private var lastArtworkAlbum: String = "Self Love"
-    private var lastArtworkBundleIdentifier: String? = nil
+    // Last track metadata that was processed, tracked independently of artwork changes
+    private var lastTrackTitle: String = "I'm Handsome"
+    private var lastTrackArtist: String = "Me"
+    private var lastTrackAlbum: String = "Self Love"
+    private var lastTrackBundleIdentifier: String? = nil
 
     @Published var isFlipping: Bool = false
     private var flipWorkItem: DispatchWorkItem?
@@ -104,6 +104,12 @@ class MusicManager: ObservableObject {
         transitionWorkItem?.cancel()
 
         // Release active controller
+        releaseActiveController()
+    }
+
+    private func releaseActiveController() {
+        // Terminates the mediaremote-adapter process owned by the controller
+        (activeController as? NowPlayingController)?.stop()
         activeController = nil
     }
 
@@ -112,7 +118,7 @@ class MusicManager: ObservableObject {
         // Cleanup previous controller
         if activeController != nil {
             controllerCancellables.removeAll()
-            activeController = nil
+            releaseActiveController()
         }
 
         let newController: (any MediaControllerProtocol)?
@@ -194,11 +200,11 @@ class MusicManager: ObservableObject {
             }
         }
 
-        // Check for changes in track metadata using last artwork change values
-        let titleChanged = state.title != self.lastArtworkTitle
-        let artistChanged = state.artist != self.lastArtworkArtist
-        let albumChanged = state.album != self.lastArtworkAlbum
-        let bundleChanged = state.bundleIdentifier != self.lastArtworkBundleIdentifier
+        // Check for changes in track metadata against the last processed values
+        let titleChanged = state.title != self.lastTrackTitle
+        let artistChanged = state.artist != self.lastTrackArtist
+        let albumChanged = state.album != self.lastTrackAlbum
+        let bundleChanged = state.bundleIdentifier != self.lastTrackBundleIdentifier
 
         // Check for artwork changes
         let artworkChanged = state.artwork != nil && state.artwork != self.artworkData
@@ -219,13 +225,10 @@ class MusicManager: ObservableObject {
             }
             self.artworkData = state.artwork
 
-            if artworkChanged || state.artwork == nil {
-                // Update last artwork change values
-                self.lastArtworkTitle = state.title
-                self.lastArtworkArtist = state.artist
-                self.lastArtworkAlbum = state.album
-                self.lastArtworkBundleIdentifier = state.bundleIdentifier
-            }
+            self.lastTrackTitle = state.title
+            self.lastTrackArtist = state.artist
+            self.lastTrackAlbum = state.album
+            self.lastTrackBundleIdentifier = state.bundleIdentifier
 
             // Only update sneak peek if there's actual content and something changed
             if !state.title.isEmpty && !state.artist.isEmpty && state.isPlaying {

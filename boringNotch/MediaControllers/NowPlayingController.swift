@@ -68,6 +68,8 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     private var process: Process?
     private var pipeHandler: JSONLinesPipeHandler?
     private var streamTask: Task<Void, Never>?
+    private var isStopped = false
+    private let lifecycleLock = NSLock()
 
     // MARK: - Initialization
     init?() {
@@ -100,22 +102,28 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     }
 
     deinit {
-        streamTask?.cancel()
-        
-        if let pipeHandler = self.pipeHandler {
-            Task { await pipeHandler.close()
-            }
-        }
-        
-        if let process = self.process {
-            if process.isRunning {
-                process.terminate()
-                process.waitUntilExit()
-            }
-        }
+        stop()
+    }
 
-        self.process = nil
-        self.pipeHandler = nil
+    /// Terminates the adapter process and closes the pipe. Safe to call more than once.
+    func stop() {
+        lifecycleLock.withLock {
+            isStopped = true
+
+            streamTask?.cancel()
+            streamTask = nil
+
+            if let pipeHandler = self.pipeHandler {
+                Task { await pipeHandler.close() }
+            }
+
+            if let process = self.process, process.isRunning {
+                process.terminate()
+            }
+
+            self.process = nil
+            self.pipeHandler = nil
+        }
     }
 
     // MARK: - Protocol Implementation
@@ -203,25 +211,29 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         let pipeHandler = JSONLinesPipeHandler()
         process.standardOutput = await pipeHandler.getPipe()
         
-        self.process = process
-        self.pipeHandler = pipeHandler
-
         do {
-            try process.run()
-            streamTask = Task { [weak self] in
-                await self?.processJSONStream()
-            }
+            try launchStream(process: process, pipeHandler: pipeHandler)
         } catch {
             assertionFailure("Failed to launch mediaremote-adapter.pl: \(error)")
         }
     }
 
     // MARK: - Async Stream Processing
-    private func processJSONStream() async {
-        guard let pipeHandler = self.pipeHandler else { return }
-        
-        await pipeHandler.readJSONLines(as: NowPlayingUpdate.self) { [weak self] update in
-            await self?.handleAdapterUpdate(update)
+    private func launchStream(process: Process, pipeHandler: JSONLinesPipeHandler) throws {
+        try lifecycleLock.withLock {
+            // The controller may have been stopped while the setup task was still pending.
+            guard !isStopped else { return }
+
+            try process.run()
+            self.process = process
+            self.pipeHandler = pipeHandler
+
+            // Only the handler is captured strongly; self is weak so the loop never keeps the controller alive.
+            streamTask = Task {
+                await pipeHandler.readJSONLines(as: NowPlayingUpdate.self) { [weak self] update in
+                    await self?.handleAdapterUpdate(update)
+                }
+            }
         }
     }
 
@@ -351,6 +363,7 @@ actor JSONLinesPipeHandler {
     private let pipe: Pipe
     private let fileHandle: FileHandle
     private var buffer = ""
+    private var pendingRead: CheckedContinuation<Data, Error>?
     
     init() {
         self.pipe = Pipe()
@@ -405,16 +418,24 @@ actor JSONLinesPipeHandler {
     
     private func readData() async throws -> Data {
         return try await withCheckedThrowingContinuation { continuation in
+            pendingRead = continuation
             
-            fileHandle.readabilityHandler = { handle in
+            fileHandle.readabilityHandler = { [weak self] handle in
                 let data = handle.availableData
                 handle.readabilityHandler = nil
-                continuation.resume(returning: data)
+                Task { await self?.finishRead(with: data) }
             }
         }
     }
     
+    private func finishRead(with data: Data) {
+        pendingRead?.resume(returning: data)
+        pendingRead = nil
+    }
+    
     func close() async {
+        // Resume a read that is still waiting so the reading loop ends instead of suspending forever.
+        finishRead(with: Data())
         do {
             fileHandle.readabilityHandler = nil
             try fileHandle.close()

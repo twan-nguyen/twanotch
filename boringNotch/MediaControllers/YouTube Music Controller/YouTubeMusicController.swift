@@ -49,7 +49,7 @@ final class YouTubeMusicController: MediaControllerProtocol {
     private let authManager: YouTubeMusicAuthManager
     private var webSocketClient: YouTubeMusicWebSocketClient?
     
-    private var updateTimer: Timer?
+    private var updateTask: Task<Void, Never>?
     private var appStateObserver: Task<Void, Never>?
     private var reconnectDelay: TimeInterval = 1.0
     
@@ -64,6 +64,11 @@ final class YouTubeMusicController: MediaControllerProtocol {
         Task {
             await initializeIfAppActive()
         }
+    }
+
+    deinit {
+        appStateObserver?.cancel()
+        updateTask?.cancel()
     }
     
     // MARK: - MediaControllerProtocol Implementation
@@ -185,7 +190,6 @@ final class YouTubeMusicController: MediaControllerProtocol {
         
         Task { @MainActor in
             stopPeriodicUpdates()
-            appStateObserver?.cancel()
         }
         
         Task {
@@ -228,7 +232,7 @@ final class YouTubeMusicController: MediaControllerProtocol {
         do {
             try await client.connect(to: wsURL, with: token)
             webSocketClient = client
-            stopPeriodicUpdates() // WebSocket will provide real-time updates
+            await stopPeriodicUpdates() // WebSocket will provide real-time updates
             reconnectDelay = configuration.reconnectDelay.lowerBound
         } catch {
             print("[YouTubeMusicController] WebSocket connection failed: \(error)")
@@ -317,21 +321,26 @@ final class YouTubeMusicController: MediaControllerProtocol {
         }
     }
     
+    @MainActor
     private func startPeriodicUpdates() async {
         guard isActive() && webSocketClient == nil else { return }
         
         stopPeriodicUpdates()
         
-        updateTimer = Timer.scheduledTimer(withTimeInterval: configuration.updateInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        let interval = configuration.updateInterval
+        updateTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(interval))
+                guard !Task.isCancelled else { return }
                 await self?.updatePlaybackInfo()
             }
         }
     }
     
+    @MainActor
     private func stopPeriodicUpdates() {
-        updateTimer?.invalidate()
-        updateTimer = nil
+        updateTask?.cancel()
+        updateTask = nil
     }
 
     func pollPlaybackState() async {
