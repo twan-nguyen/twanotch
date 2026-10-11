@@ -153,7 +153,7 @@ class SpotifyController: MediaControllerProtocol {
                     guard !Task.isCancelled else { return }
 
                     await MainActor.run { [weak self] in
-                        guard let self = self else { return }
+                        guard let self = self, !Task.isCancelled else { return }
                         // Only attach artwork to the live state, and only if the track is still the same.
                         guard self.playbackState.title == currentState.title,
                               self.playbackState.artist == currentState.artist,
@@ -163,7 +163,9 @@ class SpotifyController: MediaControllerProtocol {
                         self.artworkFetchTask = nil
                     }
                 } catch {
+                    // A cancelled task was superseded; its newer replacement owns artworkFetchTask now.
                     await MainActor.run { [weak self] in
+                        guard !Task.isCancelled else { return }
                         self?.artworkFetchTask = nil
                     }
                 }

@@ -26,4 +26,10 @@ protocol MediaControllerProtocol: ObservableObject {
     func setVolume(_ level: Double) async
     func isActive() -> Bool
     func updatePlaybackInfo() async
+    /// Releases the resources (processes, sockets, timers) owned by the controller. Safe to call more than once.
+    func stop()
+}
+
+extension MediaControllerProtocol {
+    func stop() {}
 }

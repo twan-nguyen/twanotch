@@ -33,10 +33,14 @@ final class YouTubeMusicController: MediaControllerProtocol {
     func setFavorite(_ favorite: Bool) async {
         do {
             let token = try await authManager.authenticate()
-            let isFavorite = await MainActor.run { playbackState.isFavorite }
-            if favorite && !isFavorite {
-                _ = try await httpClient.toggleLike(token: token)
-            } else if !favorite && isFavorite {
+            // Ask the server: the local flag may still describe the previous track.
+            let isFavorite: Bool
+            if let likeResp = try? await httpClient.getLikeState(token: token) {
+                isFavorite = likeResp.state?.uppercased() == "LIKE"
+            } else {
+                isFavorite = await MainActor.run { playbackState.isFavorite }
+            }
+            if favorite != isFavorite {
                 _ = try await httpClient.toggleLike(token: token)
             }
             try? await Task.sleep(for: .milliseconds(150))
@@ -56,7 +60,16 @@ final class YouTubeMusicController: MediaControllerProtocol {
     
     private var updateTask: Task<Void, Never>?
     private var appStateObserver: Task<Void, Never>?
+    /// Single reconnect loop; only touched on the main actor.
+    private var reconnectTask: Task<Void, Never>?
+    /// Set when a reconnect is requested while the loop is already running, e.g. the socket drops right after connecting.
+    private var reconnectRequested = false
     private var reconnectDelay: TimeInterval = 1.0
+
+    /// Set once by stop(); every async entry point checks it so a torn-down controller never reconnects.
+    private let stopLock = NSLock()
+    private var stopped = false
+    private var isStopped: Bool { stopLock.withLock { stopped } }
     
     // MARK: - Initialization
     init(configuration: YouTubeMusicConfiguration = .default) {
@@ -74,6 +87,26 @@ final class YouTubeMusicController: MediaControllerProtocol {
     deinit {
         appStateObserver?.cancel()
         updateTask?.cancel()
+        reconnectTask?.cancel()
+        artworkFetchTask?.cancel()
+        // stop() normally ran already; this only covers a controller released without it.
+        if let client = webSocketClient {
+            Task { await client.disconnect() }
+        }
+    }
+
+    /// Closes the WebSocket and cancels polling, reconnects and artwork work. Safe to call more than once.
+    func stop() {
+        stopLock.withLock { stopped = true }
+        appStateObserver?.cancel()
+        Task { @MainActor in
+            reconnectTask?.cancel()
+            reconnectTask = nil
+            stopPeriodicUpdates()
+            artworkFetchTask?.cancel()
+            artworkFetchTask = nil
+            await tearDownWebSocket()
+        }
     }
     
     // MARK: - MediaControllerProtocol Implementation
@@ -123,15 +156,7 @@ final class YouTubeMusicController: MediaControllerProtocol {
             let token = try await authManager.authenticate()
             let response = try await httpClient.getPlaybackInfo(token: token)
             await updatePlaybackState(with: response)
-            // Fetch like state if supported
-            do {
-                let likeResp = try await httpClient.getLikeState(token: token)
-                // A missing state or a DISLIKE (no separate dislike UI yet) both count as not favorited.
-                let isFavorite = likeResp.state?.uppercased() == "LIKE"
-                await MainActor.run { playbackState.isFavorite = isFavorite }
-            } catch {
-                // Don't treat it as an error if the like endpoint doesn't exist — just skip
-            }
+            await fetchLikeState(token: token)
         } catch YouTubeMusicError.authenticationRequired {
             await authManager.invalidateToken()
         } catch {
@@ -140,6 +165,17 @@ final class YouTubeMusicController: MediaControllerProtocol {
     }
     
     // MARK: - Private Methods
+    private func fetchLikeState(token: String) async {
+        do {
+            let likeResp = try await httpClient.getLikeState(token: token)
+            // A missing state or a DISLIKE (no separate dislike UI yet) both count as not favorited.
+            let isFavorite = likeResp.state?.uppercased() == "LIKE"
+            await MainActor.run { playbackState.isFavorite = isFavorite }
+        } catch {
+            // Don't treat it as an error if the like endpoint doesn't exist — just skip
+        }
+    }
+
     private func setupAppStateObserver() {
         appStateObserver = Task { [weak self] in
             await withTaskGroup(of: Void.self) { group in
@@ -191,24 +227,35 @@ final class YouTubeMusicController: MediaControllerProtocol {
     }
     
     private func initializeIfAppActive() async {
-        guard isActive() else { return }
-        
-        do {
-            let token = try await authManager.authenticate()
-            await setupWebSocketIfPossible(token: token)
-            await startPeriodicUpdates()
-            await updatePlaybackInfo()
-        } catch {
-            print("[YouTubeMusicController] Failed to initialize: \(error)")
+        if await !attemptInitialize() {
             await scheduleReconnect()
         }
     }
     
+    /// Returns false when the attempt failed and should be retried.
+    private func attemptInitialize() async -> Bool {
+        guard !isStopped, isActive() else { return true }
+        
+        do {
+            let token = try await authManager.authenticate()
+            guard !isStopped else { return true }
+            let connected = await setupWebSocketIfPossible(token: token)
+            await startPeriodicUpdates()
+            await updatePlaybackInfo()
+            return connected
+        } catch {
+            print("[YouTubeMusicController] Failed to initialize: \(error)")
+            return false
+        }
+    }
+    
+    /// Returns false when the connection failed and should be retried.
     @MainActor
-    private func setupWebSocketIfPossible(token: String) async {
+    private func setupWebSocketIfPossible(token: String) async -> Bool {
+        guard !isStopped else { return true }
         guard let wsURL = WebSocketURLBuilder.buildURL(from: configuration.baseURL) else {
             print("[YouTubeMusicController] Failed to build WebSocket URL")
-            return
+            return true
         }
         
         let clientToken = UUID()
@@ -229,14 +276,20 @@ final class YouTubeMusicController: MediaControllerProtocol {
         
         do {
             try await client.connect(to: wsURL, with: token)
+            if isStopped {
+                // stop() may have run while connecting, before this client was torn down.
+                await tearDownWebSocket()
+                return true
+            }
             stopPeriodicUpdates() // WebSocket will provide real-time updates
+            return true
         } catch {
             if webSocketToken == clientToken {
                 webSocketClient = nil
                 webSocketToken = nil
             }
             print("[YouTubeMusicController] WebSocket connection failed: \(error)")
-            await scheduleReconnect()
+            return false
         }
     }
     
@@ -326,23 +379,52 @@ final class YouTubeMusicController: MediaControllerProtocol {
         webSocketClient = nil
         webSocketToken = nil
         await startPeriodicUpdates() // Fallback to polling
-        await scheduleReconnect()
+        scheduleReconnect()
     }
     
+    /// Starts the retry loop unless one is already running. The loop only holds self while an attempt runs,
+    /// so a released controller is not kept alive by its backoff sleep.
     @MainActor
-    private func scheduleReconnect() async {
-        let delay = reconnectDelay
-        try? await Task.sleep(for: .seconds(delay))
-        reconnectDelay = min(delay * 2, configuration.reconnectDelay.upperBound)
-        
-        if isActive() {
-            await initializeIfAppActive()
+    private func scheduleReconnect() {
+        guard !isStopped else { return }
+        guard reconnectTask == nil else {
+            reconnectRequested = true
+            return
+        }
+        reconnectTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let delay = await self?.nextReconnectDelay() else { return }
+                try? await Task.sleep(for: .seconds(delay))
+                guard !Task.isCancelled, let self else { return }
+                let succeeded = await self.attemptInitialize()
+                let requested = await self.consumeReconnectRequest()
+                if succeeded && !requested { break }
+            }
+            await self?.finishReconnect()
         }
     }
     
     @MainActor
+    private func nextReconnectDelay() -> TimeInterval {
+        let delay = reconnectDelay
+        reconnectDelay = min(delay * 2, configuration.reconnectDelay.upperBound)
+        return delay
+    }
+    
+    @MainActor
+    private func consumeReconnectRequest() -> Bool {
+        defer { reconnectRequested = false }
+        return reconnectRequested
+    }
+    
+    @MainActor
+    private func finishReconnect() {
+        reconnectTask = nil
+    }
+    
+    @MainActor
     private func startPeriodicUpdates() async {
-        guard isActive() && webSocketClient == nil else { return }
+        guard !isStopped, isActive() && webSocketClient == nil else { return }
         
         stopPeriodicUpdates()
         
@@ -430,6 +512,8 @@ final class YouTubeMusicController: MediaControllerProtocol {
     @MainActor
     private func updatePlaybackState(with response: PlaybackResponse) async {
         var newState = playbackState
+        let previousTitle = newState.title
+        let previousArtist = newState.artist
         
         newState.isPlaying = !response.isPaused
 
@@ -453,6 +537,12 @@ final class YouTubeMusicController: MediaControllerProtocol {
             newState.duration = duration
         }
 
+        // The like flag belongs to the previous track until the new state is fetched.
+        let trackChanged = newState.title != previousTitle || newState.artist != previousArtist
+        if trackChanged {
+            newState.isFavorite = false
+        }
+
         newState.lastUpdated = Date()
         
         if let shuffled = response.isShuffled {
@@ -474,6 +564,13 @@ final class YouTubeMusicController: MediaControllerProtocol {
 
         if newState != playbackState {
             playbackState = newState
+        }
+
+        if trackChanged && !isStopped {
+            Task { [weak self] in
+                guard let self, let token = try? await self.authManager.authenticate() else { return }
+                await self.fetchLikeState(token: token)
+            }
         }
 
         if let artworkURL = response.imageSrc, artworkURL != currentArtworkSrc {

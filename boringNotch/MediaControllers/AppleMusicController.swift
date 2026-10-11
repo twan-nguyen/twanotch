@@ -140,7 +140,9 @@ class AppleMusicController: MediaControllerProtocol {
         let isShuffled = descriptor.atIndex(7)?.booleanValue ?? false
         let repeatModeValue = descriptor.atIndex(8)?.int32Value ?? 0
         let volumePercentage = descriptor.atIndex(9)?.int32Value ?? 50
-        let artwork = descriptor.atIndex(10)?.data as Data?
+        // The script returns "" when there is no artwork, which yields empty (not nil) data.
+        let artworkBytes = descriptor.atIndex(10)?.data
+        let artwork = (artworkBytes?.isEmpty == false) ? artworkBytes : nil
         let lovedState = descriptor.atIndex(11)?.booleanValue ?? false
 
         // playbackState is only ever mutated on the main actor.

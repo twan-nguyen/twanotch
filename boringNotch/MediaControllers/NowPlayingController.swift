@@ -294,12 +294,6 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
             newPlaybackState.repeatMode = self.playbackState.repeatMode
         }
 
-        if payload.artworkData != nil {
-            newPlaybackState.artwork = artwork
-        } else if !diff {
-            newPlaybackState.artwork = nil
-        }
-
         if let timestamp {
             newPlaybackState.lastUpdated = timestamp
         } else if !diff {
@@ -317,6 +311,16 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         )
         
         newPlaybackState.volume = payload.volume ?? (diff ? self.playbackState.volume : 0.5)
+
+        // A diff without artwork means "unchanged" (an explicit null is indistinguishable from a missing key),
+        // so keep the current artwork unless the album or source app changed and new artwork is still to come.
+        if payload.artworkData != nil {
+            newPlaybackState.artwork = artwork
+        } else if diff
+            && newPlaybackState.album == self.playbackState.album
+            && newPlaybackState.bundleIdentifier == self.playbackState.bundleIdentifier {
+            newPlaybackState.artwork = self.playbackState.artwork
+        }
 
         // The favorite flag is not part of the adapter payload; keep it until the track changes.
         let trackChanged = newPlaybackState.title != self.playbackState.title
@@ -383,6 +387,7 @@ actor JSONLinesPipeHandler {
     private let fileHandle: FileHandle
     private var buffer = Data()
     private var pendingRead: CheckedContinuation<Data, Error>?
+    private var isClosed = false
     
     init() {
         self.pipe = Pipe()
@@ -432,11 +437,15 @@ actor JSONLinesPipeHandler {
     }
     
     private func readData() async throws -> Data {
+        // close() may have run while the previous line was still being processed.
+        if isClosed || Task.isCancelled { return Data() }
+        
         return try await withCheckedThrowingContinuation { continuation in
             pendingRead = continuation
             
             fileHandle.readabilityHandler = { [weak self] handle in
-                let data = handle.availableData
+                // read(upToCount:) reports errors instead of raising like availableData does on a closed handle.
+                let data = (try? handle.read(upToCount: 65536)) ?? Data()
                 handle.readabilityHandler = nil
                 Task { await self?.finishRead(with: data) }
             }
@@ -449,14 +458,10 @@ actor JSONLinesPipeHandler {
     }
     
     func close() async {
+        isClosed = true
+        fileHandle.readabilityHandler = nil
         // Resume a read that is still waiting so the reading loop ends instead of suspending forever.
         finishRead(with: Data())
-        do {
-            fileHandle.readabilityHandler = nil
-            try fileHandle.close()
-            try pipe.fileHandleForWriting.close()
-        } catch {
-            print("Error closing pipe handler: \(error)")
-        }
+        // The descriptors are released when the Pipe is deallocated; closing them here could race a handler still running.
     }
 }

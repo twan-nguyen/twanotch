@@ -20,6 +20,7 @@ class MusicManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var controllerCancellables = Set<AnyCancellable>()
     private var debounceIdleTask: Task<Void, Never>?
+    private var lyricsTask: Task<Void, Never>?
 
     // Helper to check if macOS has removed support for NowPlayingController
     public private(set) var isNowPlayingDeprecated: Bool = false
@@ -98,6 +99,7 @@ class MusicManager: ObservableObject {
     
     public func destroy() {
         debounceIdleTask?.cancel()
+        lyricsTask?.cancel()
         cancellables.removeAll()
         controllerCancellables.removeAll()
         flipWorkItem?.cancel()
@@ -108,8 +110,8 @@ class MusicManager: ObservableObject {
     }
 
     private func releaseActiveController() {
-        // Terminates the mediaremote-adapter process owned by the controller
-        (activeController as? NowPlayingController)?.stop()
+        // Tears down what the controller owns (adapter process, WebSocket, timers)
+        activeController?.stop()
         activeController = nil
     }
 
@@ -206,13 +208,15 @@ class MusicManager: ObservableObject {
         let albumChanged = state.album != self.lastTrackAlbum
         let bundleChanged = state.bundleIdentifier != self.lastTrackBundleIdentifier
 
-        // Check for artwork changes
+        // Artwork often arrives after the metadata, so it must not re-trigger the track-level side effects.
+        let metadataChanged = titleChanged || artistChanged || albumChanged || bundleChanged
         let artworkChanged = state.artwork != nil && state.artwork != self.artworkData
-        let hasContentChange = titleChanged || artistChanged || albumChanged || artworkChanged || bundleChanged
 
         // Handle artwork and visual transitions for changed content
-        if hasContentChange {
-            self.triggerFlipAnimation()
+        if metadataChanged || artworkChanged {
+            if metadataChanged {
+                self.triggerFlipAnimation()
+            }
 
             if artworkChanged, let artwork = state.artwork {
                 self.updateArtwork(artwork)
@@ -230,13 +234,15 @@ class MusicManager: ObservableObject {
             self.lastTrackAlbum = state.album
             self.lastTrackBundleIdentifier = state.bundleIdentifier
 
-            // Only update sneak peek if there's actual content and something changed
-            if !state.title.isEmpty && !state.artist.isEmpty && state.isPlaying {
-                self.updateSneakPeek()
-            }
+            if metadataChanged {
+                // Only update sneak peek if there's actual content and something changed
+                if !state.title.isEmpty && !state.artist.isEmpty && state.isPlaying {
+                    self.updateSneakPeek()
+                }
 
-            // Fetch lyrics on content change
-            self.fetchLyricsIfAvailable(bundleIdentifier: state.bundleIdentifier, title: state.title, artist: state.artist)
+                // Fetch lyrics on content change
+                self.fetchLyricsIfAvailable(bundleIdentifier: state.bundleIdentifier, title: state.title, artist: state.artist)
+            }
         }
 
         let timeChanged = state.currentTime != self.elapsedTime
@@ -280,6 +286,12 @@ class MusicManager: ObservableObject {
             self.volumeControlSupported = activeController?.supportsVolumeControl ?? false
         }
 
+        // Favorite support can depend on the playing app (Now Playing), so refresh it with every state.
+        let canFavorite = activeController?.supportsFavorite ?? false
+        if canFavorite != self.canFavoriteTrack {
+            self.canFavoriteTrack = canFavorite
+        }
+
         if repeatModeChanged {
             self.repeatMode = state.repeatMode
         }
@@ -318,17 +330,22 @@ class MusicManager: ObservableObject {
 
     // MARK: - Lyrics
     private func fetchLyricsIfAvailable(bundleIdentifier: String?, title: String, artist: String) {
+        // A newer track supersedes any lookup still in flight.
+        lyricsTask?.cancel()
+        lyricsTask = nil
+
         guard Defaults[.enableLyrics], !title.isEmpty else {
             DispatchQueue.main.async {
                 self.isFetchingLyrics = false
                 self.currentLyrics = ""
+                self.syncedLyrics = []
             }
             return
         }
 
         // Prefer native Apple Music lyrics when available
         if let bundleIdentifier = bundleIdentifier, bundleIdentifier.contains("com.apple.Music") {
-            Task { @MainActor in
+            lyricsTask = Task { @MainActor in
                 let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music")
                 guard !runningApps.isEmpty else {
                     await self.fetchLyricsFromWeb(title: title, artist: artist)
@@ -337,6 +354,7 @@ class MusicManager: ObservableObject {
 
                 self.isFetchingLyrics = true
                 self.currentLyrics = ""
+                self.syncedLyrics = []
                 do {
                     let script = """
                     tell application \"Music\"
@@ -360,7 +378,9 @@ class MusicManager: ObservableObject {
                         end if
                     end tell
                     """
-                    if let result = try await AppleScriptHelper.execute(script), let lyricsString = result.stringValue, !lyricsString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let result = try await AppleScriptHelper.execute(script)
+                    guard !Task.isCancelled else { return }
+                    if let result, let lyricsString = result.stringValue, !lyricsString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         self.currentLyrics = lyricsString.trimmingCharacters(in: .whitespacesAndNewlines)
                         self.isFetchingLyrics = false
                         self.syncedLyrics = []
@@ -372,9 +392,10 @@ class MusicManager: ObservableObject {
                 await self.fetchLyricsFromWeb(title: title, artist: artist)
             }
         } else {
-            Task { @MainActor in
+            lyricsTask = Task { @MainActor in
                 self.isFetchingLyrics = true
                 self.currentLyrics = ""
+                self.syncedLyrics = []
                 await self.fetchLyricsFromWeb(title: title, artist: artist)
             }
         }
@@ -406,6 +427,8 @@ class MusicManager: ObservableObject {
         }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
+            // Drop the response when a newer track started its own lookup meanwhile.
+            guard !Task.isCancelled else { return }
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 self.currentLyrics = ""
                 self.isFetchingLyrics = false
@@ -430,6 +453,7 @@ class MusicManager: ObservableObject {
                 self.syncedLyrics = []
             }
         } catch {
+            guard !Task.isCancelled else { return }
             self.currentLyrics = ""
             self.isFetchingLyrics = false
             self.syncedLyrics = []
