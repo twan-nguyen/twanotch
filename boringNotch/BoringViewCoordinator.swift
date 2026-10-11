@@ -127,16 +127,20 @@ class BoringViewCoordinator: ObservableObject {
             forName: Notification.Name.accessibilityAuthorizationChanged,
             object: nil,
             queue: .main
-        ) { _ in
+        ) { notification in
             Task { @MainActor in
+                if notification.userInfo?["granted"] as? Bool == true {
+                    XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization()
+                }
                 if Defaults[.hudReplacement] {
                     await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
                 }
             }
         }
 
-        // Observe changes to hudReplacement
-        hudReplacementCancellable = Defaults.publisher(.hudReplacement)
+        // Observe changes to hudReplacement. Skip the initial emission: launch is handled below
+        // without prompting, so a missing permission never triggers the dialog at every start.
+        hudReplacementCancellable = Defaults.publisher(.hudReplacement, options: [])
             .sink { [weak self] change in
                 Task { @MainActor in
                     guard let self = self else { return }
@@ -149,10 +153,13 @@ class BoringViewCoordinator: ObservableObject {
                             let granted = await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded: true)
                             if Task.isCancelled { return }
 
+                            // Not granted (yet) or the helper was unreachable: keep the user's
+                            // preference and leave the interceptor stopped. It is started by the
+                            // accessibilityAuthorizationChanged observer once permission arrives.
                             if granted {
                                 await MediaKeyInterceptor.shared.start()
                             } else {
-                                Defaults[.hudReplacement] = false
+                                XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
                             }
                         }
                     } else {
@@ -165,11 +172,11 @@ class BoringViewCoordinator: ObservableObject {
             helloAnimationRunning = firstLaunch
 
             if Defaults[.hudReplacement] {
-                let authorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
-                if !authorized {
-                    Defaults[.hudReplacement] = false
-                } else {
-                    await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
+                // start() checks authorization itself and stays stopped when it is missing
+                await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
+                // Watch for the permission (e.g. re-granted after a rebuild) so the HUD comes back on its own.
+                if !(await XPCHelperClient.shared.isAccessibilityAuthorized()) {
+                    XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
                 }
             }
         }

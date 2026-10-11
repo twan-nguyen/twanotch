@@ -63,8 +63,7 @@ class BoringViewModel: NSObject, ObservableObject {
             .map { shelf, drag, general in
                 shelf || drag || general
             }
-            .assign(to: \.anyDropZoneTargeting, on: self)
-            .store(in: &cancellables)
+            .assign(to: &$anyDropZoneTargeting)
         
         setupDetectorObserver()
     }
@@ -216,6 +215,13 @@ class BoringViewModel: NSObject, ObservableObject {
         } else if !coordinator.openLastTabByDefault {
             coordinator.currentView = .home
         }
+    }
+
+    /// Re-reads the closed notch size for the current screen without touching shared coordinator state.
+    func refreshClosedNotchSize() {
+        guard notchState == .closed else { return }
+        notchSize = getClosedNotchSize(screenUUID: screenUUID)
+        closedNotchSize = notchSize
     }
 
     func closeHello() {

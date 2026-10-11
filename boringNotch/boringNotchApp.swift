@@ -65,7 +65,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var screenLockedObserver: Any?
     private var screenUnlockedObserver: Any?
     private var isScreenLocked: Bool = false
-    private var windowScreenDidChangeObserver: Any?
+    private var windowScreenDidChangeObservers: [ObjectIdentifier: NSObjectProtocol] = [:] // window -> observer token
     private var dragDetectors: [String: DragDetector] = [:] // UUID -> DragDetector
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -149,19 +149,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         if shouldCleanupMulti {
             windows.values.forEach { window in
+                removeScreenDidChangeObserver(for: window)
                 window.close()
                 NotchSpaceManager.shared.notchSpace.windows.remove(window)
             }
             windows.removeAll()
             viewModels.removeAll()
         } else if let window = window {
+            removeScreenDidChangeObserver(for: window)
             window.close()
             NotchSpaceManager.shared.notchSpace.windows.remove(window)
-            if let obs = windowScreenDidChangeObserver {
-                NotificationCenter.default.removeObserver(obs)
-                windowScreenDidChangeObserver = nil
-            }
             self.window = nil
+        }
+    }
+
+    private func removeScreenDidChangeObserver(for window: NSWindow) {
+        if let obs = windowScreenDidChangeObservers.removeValue(forKey: ObjectIdentifier(window)) {
+            NotificationCenter.default.removeObserver(obs)
         }
     }
 
@@ -253,7 +257,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotchSpaceManager.shared.notchSpace.windows.insert(window)
 
         // Observe when the window's screen changes so we can update drag detectors
-        windowScreenDidChangeObserver = NotificationCenter.default.addObserver(
+        windowScreenDidChangeObservers[ObjectIdentifier(window)] = NotificationCenter.default.addObserver(
             forName: NSWindow.didChangeScreenNotification,
             object: window,
             queue: .main) { [weak self] _ in
@@ -482,6 +486,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Remove windows for screens that no longer exist
             for uuid in windows.keys where !currentScreenUUIDs.contains(uuid) {
                 if let window = windows[uuid] {
+                    removeScreenDidChangeObserver(for: window)
                     window.close()
                     NotchSpaceManager.shared.notchSpace.windows.remove(window)
                     windows.removeValue(forKey: uuid)
@@ -493,7 +498,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             for screen in NSScreen.screens {
                 guard let uuid = screen.displayUUID else { continue }
                 
+                var isNewViewModel = false
                 if windows[uuid] == nil {
+                    isNewViewModel = true
                     let viewModel = BoringViewModel(screenUUID: uuid)
                     let window = createBoringNotchWindow(for: screen, with: viewModel)
 
@@ -505,7 +512,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     positionWindow(window, on: screen, changeAlpha: changeAlpha)
 
                     if viewModel.notchState == .closed {
-                        viewModel.close()
+                        // close() resets coordinator state shared by all screens (current tab, sneak peek),
+                        // so only a freshly created view model while no notch is open gets the full reset.
+                        if isNewViewModel && !viewModels.values.contains(where: { $0.notchState == .open }) {
+                            viewModel.close()
+                        } else {
+                            viewModel.refreshClosedNotchSize()
+                        }
                     }
                 }
             }
