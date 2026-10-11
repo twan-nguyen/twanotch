@@ -92,21 +92,22 @@ final class ShelfStateViewModel: ObservableObject {
     func cleanupInvalidItems() {
         Task { [weak self] in
             guard let self else { return }
-            var keep: [ShelfItem] = []
+            var invalidIDs: Set<ShelfItem.ID> = []
             for item in self.items {
-                switch item.kind {
-                case .file(let data):
-                    let bookmark = Bookmark(data: data)
-                    if await bookmark.validate() {
-                        keep.append(item)
-                    } else {
-                        item.cleanupStoredData()
-                    }
-                default:
-                    keep.append(item)
+                guard case .file(let data) = item.kind else { continue }
+                // Items on an unmounted volume are kept; only files that are really gone are dropped.
+                if await Bookmark(data: data).validationState() == .missing {
+                    invalidIDs.insert(item.id)
                 }
             }
-            await MainActor.run { self.items = keep }
+            guard !invalidIDs.isEmpty else { return }
+
+            // `items` may have changed while validating (drops, removals), so act on the current
+            // array instead of writing back the snapshot.
+            for item in self.items where invalidIDs.contains(item.id) {
+                item.cleanupStoredData()
+            }
+            self.items.removeAll { invalidIDs.contains($0.id) }
         }
     }
 

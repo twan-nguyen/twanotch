@@ -109,8 +109,10 @@ class QuickShareService: ObservableObject {
     }
     
     // MARK: - Sharing
+    /// - Parameter onEnd: Runs once the sharing session has ended (service finished, failed or the
+    ///   picker was dismissed), i.e. when the shared items are no longer needed.
     @MainActor
-    func shareFilesOrText(_ items: [Any], using provider: QuickShareProvider, from view: NSView?) async {
+    func shareFilesOrText(_ items: [Any], using provider: QuickShareProvider, from view: NSView?, onEnd: (() -> Void)? = nil) async {
         let fileURLs = items.compactMap { $0 as? URL }.filter { $0.isFileURL }
         // Stop any previous sharing access
         stopSharingAccessingURLs()
@@ -121,6 +123,7 @@ class QuickShareService: ObservableObject {
         let delegate = SharingStateManager.shared.makeDelegate { [weak self] in
             self?.lifecycleDelegate = nil
             self?.stopSharingAccessingURLs()
+            onEnd?()
         }
         lifecycleDelegate = delegate
 
@@ -135,6 +138,9 @@ class QuickShareService: ObservableObject {
             delegate.markPickerBegan()
             if let view {
                 picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
+            } else {
+                // Nothing is presented, so no delegate callback will ever report the end.
+                onEnd?()
             }
         }
     }
@@ -171,8 +177,11 @@ private class SharingServiceDelegate: NSObject {}
                 await shareFilesOrText([text], using: shareProvider, from: view)
             } else {
                 if let tempTextURL = await TemporaryFileStorageService.shared.createTempFile(for: .text(text)) {
-                    await shareFilesOrText([tempTextURL], using: shareProvider, from: view)
-                    TemporaryFileStorageService.shared.removeTemporaryFileIfNeeded(at: tempTextURL)
+                    // The share service reads the file after this call returns, so delete it
+                    // only when the sharing session ends.
+                    await shareFilesOrText([tempTextURL], using: shareProvider, from: view) {
+                        TemporaryFileStorageService.shared.removeTemporaryFileIfNeeded(at: tempTextURL)
+                    }
                 } else {
                     await shareFilesOrText([text], using: shareProvider, from: view)
                 }

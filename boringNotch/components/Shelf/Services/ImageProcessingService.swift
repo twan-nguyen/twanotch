@@ -46,13 +46,13 @@ struct ImageConversionOptions {
     let removeMetadata: Bool
 }
 
-/// Service for processing images (background removal, conversion, PDF creation)
-@MainActor
-final class ImageProcessingService {
+/// Service for processing images (background removal, conversion, PDF creation).
+/// Deliberately not main-actor isolated: the async entry points below run on the global executor,
+/// so Vision, CoreImage, encoding and PDF work never blocks the UI.
+final class ImageProcessingService: Sendable {
     static let shared = ImageProcessingService()
     
     private init() {}
-    private let ciContext = CIContext(options: nil)
     
     // MARK: - Remove Background
     
@@ -79,15 +79,11 @@ final class ImageProcessingService {
         
         let output = try await applyMask(mask, to: cgImage)
         
-        let processedImage = NSImage(cgImage: output, size: inputImage.size)
-        
         // Create temporary file
         let originalName = url.deletingPathExtension().lastPathComponent
         let newName = "\(originalName)_no_bg.png"
         
-        guard let pngData = processedImage.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: pngData),
-              let finalData = bitmap.representation(using: .png, properties: [:]) else {
+        guard let finalData = encodePNG(output) else {
             throw ImageProcessingError.saveFailed
         }
         
@@ -98,6 +94,15 @@ final class ImageProcessingService {
         }
         
         return tempURL
+    }
+    
+    private func encodePNG(_ image: CGImage) -> Data? {
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil) else {
+            return nil
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        return CGImageDestinationFinalize(destination) ? data as Data : nil
     }
     
     private func applyMask(_ mask: CVPixelBuffer, to image: CGImage) async throws -> CGImage {

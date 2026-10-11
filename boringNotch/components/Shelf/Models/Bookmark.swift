@@ -68,12 +68,33 @@ struct Bookmark: Sendable, Equatable, Codable {
         items[idx].kind = ShelfItemKind.file(bookmark: newBookmark)
     }
 
+    enum ValidationState: Sendable, Equatable {
+        case valid
+        /// The file is gone (or the bookmark is unusable) while its volume is reachable.
+        case missing
+        /// The file lives on a volume that is not mounted right now, so its state is unknown.
+        case volumeUnavailable
+    }
+
     func validate() async -> Bool {
+        await validationState() == .valid
+    }
+
+    func validationState() async -> ValidationState {
         let (url, _) = resolve()
-        guard let url = url else { return false }
-        return url.accessSecurityScopedResource { url in
-            FileManager.default.fileExists(atPath: url.path)
+        if let url, url.accessSecurityScopedResource(accessor: { FileManager.default.fileExists(atPath: $0.path) }) {
+            return .valid
         }
+        return bookmarkedVolumeIsMounted ? .missing : .volumeUnavailable
+    }
+
+    /// Whether the volume recorded in the bookmark is currently mounted. Defaults to true when
+    /// the volume cannot be read from the bookmark, so only a positively unmounted volume is spared.
+    private var bookmarkedVolumeIsMounted: Bool {
+        guard !data.isEmpty,
+              let volumeURL = URL.resourceValues(forKeys: [.volumeURLKey], fromBookmarkData: data)?.volume
+        else { return true }
+        return FileManager.default.fileExists(atPath: volumeURL.path)
     }
 
     func withAccess<T: Sendable>(_ block: @Sendable (URL) async throws -> T) async rethrows -> T? {

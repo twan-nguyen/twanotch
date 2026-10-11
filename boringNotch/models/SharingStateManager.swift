@@ -144,6 +144,10 @@ final class SharingLifecycleDelegate: NSObject, NSSharingServiceDelegate, NSShar
 			onBegin()
 		}
 		serviceInProgress = true
+		// The service has started and will report didShare/didFail, so the fallback is no longer
+		// needed; ending early would release file access and temp files the service is still reading.
+		timeoutTask?.cancel()
+		timeoutTask = nil
 	}
 
 	func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {
