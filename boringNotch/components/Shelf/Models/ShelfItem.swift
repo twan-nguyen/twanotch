@@ -219,9 +219,10 @@ private extension ShelfItemKind {
 
 private extension ShelfItem {
     func resolvedContext(for bookmarkData: Data) -> (url: URL, bookmark: Data)? {
-        let bookmark = Bookmark(data: bookmarkData)
-        if let url = bookmark.resolveURL() {
-            return (url, bookmark.refreshedData ?? bookmarkData)
+        // Resolve once: both the URL and the refreshed data come from the same resolution.
+        let result = Bookmark(data: bookmarkData).resolve()
+        if let url = result.url {
+            return (url, result.refreshedData ?? bookmarkData)
         }
         return nil
     }

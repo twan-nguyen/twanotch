@@ -22,6 +22,8 @@ final class ShelfStateViewModel: ObservableObject {
     // Queue for deferred bookmark updates to avoid publishing during view updates
     private var pendingBookmarkUpdates: [ShelfItem.ID: Data] = [:]
     private var updateTask: Task<Void, Never>?
+    // Resolving a bookmark touches the file system; reuse the key while an item's content is unchanged.
+    private var identityKeyCache: [ShelfItem.ID: (kind: ShelfItemKind, key: String)] = [:]
 
     private init() {
         items = ShelfPersistenceService.shared.load()
@@ -31,15 +33,27 @@ final class ShelfStateViewModel: ObservableObject {
     func add(_ newItems: [ShelfItem]) {
         guard !newItems.isEmpty else { return }
         var merged = items
+        var keys: [ShelfItem.ID: (kind: ShelfItemKind, key: String)] = [:]
+        func identityKey(of item: ShelfItem) -> String {
+            if let cached = identityKeyCache[item.id], cached.kind == item.kind {
+                keys[item.id] = cached
+                return cached.key
+            }
+            let key = item.identityKey
+            keys[item.id] = (item.kind, key)
+            return key
+        }
         // Deduplicate by identityKey while preserving order (existing first)
-        var seen: Set<String> = Set(merged.map { $0.identityKey })
+        var seen: Set<String> = Set(merged.map { identityKey(of: $0) })
         for it in newItems {
             let key = it.identityKey
             if !seen.contains(key) {
                 merged.append(it)
                 seen.insert(key)
+                keys[it.id] = (it.kind, key)
             }
         }
+        identityKeyCache = keys
         items = merged
     }
 

@@ -22,8 +22,6 @@ class QuickShareService: ObservableObject {
     @Published var availableProviders: [QuickShareProvider] = []
     @Published var isPickerOpen = false
     private var cachedServices: [String: NSSharingService] = [:]
-    // Hold security-scoped URLs during sharing
-    private var sharingAccessingURLs: [URL] = []
     private var lifecycleDelegate: SharingLifecycleDelegate?
    
     init() {
@@ -114,44 +112,43 @@ class QuickShareService: ObservableObject {
     @MainActor
     func shareFilesOrText(_ items: [Any], using provider: QuickShareProvider, from view: NSView?, onEnd: (() -> Void)? = nil) async {
         let fileURLs = items.compactMap { $0 as? URL }.filter { $0.isFileURL }
-        // Stop any previous sharing access
-        stopSharingAccessingURLs()
-        // Start security-scoped access for all file URLs
-        sharingAccessingURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
+
+        let directService = cachedServices[provider.id].flatMap { $0.canPerform(withItems: items) ? $0 : nil }
+        // Without a service or a view to anchor the picker nothing is presented, so no delegate
+        // callback would ever report the end. Bail out before the session starts.
+        guard directService != nil || view != nil else {
+            onEnd?()
+            return
+        }
+
+        // Start security-scoped access for all file URLs. The session owns exactly the URLs it started,
+        // so a newer session can never stop access an older one still needs (and vice versa).
+        let accessedURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
 
         // Setup lifecycle delegate to keep notch open during picker/service
         let delegate = SharingStateManager.shared.makeDelegate { [weak self] in
             self?.lifecycleDelegate = nil
-            self?.stopSharingAccessingURLs()
+            NSLog("Stopping sharing access to URLs")
+            for url in accessedURLs {
+                url.stopAccessingSecurityScopedResource()
+            }
             onEnd?()
         }
         lifecycleDelegate = delegate
 
-        if let svc = cachedServices[provider.id], svc.canPerform(withItems: items) {
+        if let svc = directService {
             // For direct service path, explicitly mark service interaction start
             delegate.markServiceBegan()
             svc.delegate = delegate
             svc.perform(withItems: items)
-        } else {
+        } else if let view {
             let picker = NSSharingServicePicker(items: items)
             picker.delegate = delegate
             delegate.markPickerBegan()
-            if let view {
-                picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
-            } else {
-                // Nothing is presented, so no delegate callback will ever report the end.
-                onEnd?()
-            }
+            picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
         }
     }
 
-    private func stopSharingAccessingURLs() {
-        NSLog("Stopping sharing access to URLs")
-        for url in sharingAccessingURLs {
-            url.stopAccessingSecurityScopedResource()
-        }
-        sharingAccessingURLs.removeAll()
-    }
 // MARK: - SharingServiceDelegate
 
 private class SharingServiceDelegate: NSObject {}

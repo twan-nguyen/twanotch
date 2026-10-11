@@ -15,21 +15,35 @@ import ObjectiveC
 @MainActor
 final class ShelfItemViewModel: ObservableObject {
     @Published private(set) var item: ShelfItem
+    // Resolving the bookmark touches the file system, so the name and icon are computed once per
+    // item state instead of on every render.
+    @Published private(set) var displayName: String
+    @Published private(set) var icon: NSImage
     @Published var thumbnail: NSImage?
     @Published var isDropTargeted: Bool = false
     @Published var isRenaming: Bool = false
     @Published var draftTitle: String = ""
     private var sharingLifecycle: SharingLifecycleDelegate?
     private var quickShareLifecycle: SharingLifecycleDelegate?
-    private var sharingAccessingURLs: [URL] = []
     private static var copiedURLs: [URL] = []
 
     private let selection = ShelfSelectionModel.shared
 
     init(item: ShelfItem) {
+        let displayName = item.displayName
         self.item = item
-        self.draftTitle = item.displayName
+        self.displayName = displayName
+        self.icon = item.icon
+        self.draftTitle = displayName
         Task { await loadThumbnail() }
+    }
+
+    /// Re-derives the cached name and icon when the item's content (e.g. its bookmark after a rename) changed.
+    func refreshIfNeeded(for newItem: ShelfItem) {
+        guard newItem.id == item.id, newItem.kind != item.kind else { return }
+        item = newItem
+        displayName = newItem.displayName
+        icon = newItem.icon
     }
 
     var isSelected: Bool { selection.isSelected(item.id) }
@@ -144,33 +158,27 @@ final class ShelfItemViewModel: ObservableObject {
                 }
             }
             
-            guard !itemsToShare.isEmpty else { return }
+            // Without a view nothing can be presented, so do not start a session that would never end.
+            guard !itemsToShare.isEmpty, let view else { return }
              
-            stopSharingAccessingURLs()
-            // Start security-scoped access for all file URLs and keep it active during sharing
-            sharingAccessingURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
+            // Start security-scoped access for all file URLs and keep it active during sharing.
+            // The session owns exactly the URLs it started, so another session cannot stop them.
+            let accessedURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
             
             // Create and retain lifecycle delegate for the entire share operation
             let lifecycle = SharingStateManager.shared.makeDelegate { [weak self] in
                 self?.sharingLifecycle = nil
-                self?.stopSharingAccessingURLs()
+                for url in accessedURLs {
+                    url.stopAccessingSecurityScopedResource()
+                }
             }
             self.sharingLifecycle = lifecycle
             
             let picker = NSSharingServicePicker(items: itemsToShare)
             picker.delegate = lifecycle
             lifecycle.markPickerBegan()
-            if let view {
-                picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
-            }
+            picker.show(relativeTo: .zero, of: view, preferredEdge: .minY)
         }
-    }
-    
-    private func stopSharingAccessingURLs() {
-        for url in sharingAccessingURLs {
-            url.stopAccessingSecurityScopedResource()
-        }
-        sharingAccessingURLs.removeAll()
     }
 
     /// Call this closure to request a QuickLook preview for the given URLs.
@@ -562,16 +570,15 @@ final class ShelfItemViewModel: ObservableObject {
                 Task {
                     do {
                         // Create ZIP in a temporary location while holding access to selected resources
-                        if let zipTempURL = try await fileURLs.accessSecurityScopedResources(accessor: { urls in
-                            await TemporaryFileStorageService.shared.createZip(from: urls)
-                        }) {
-                            if let bookmark = try? Bookmark(url: zipTempURL) {
-                                let newItem = ShelfItem(kind: .file(bookmark: bookmark.data), isTemporary: true)
-                                ShelfStateViewModel.shared.add([newItem])
-                            } else {
-                                // Fallback: reveal the temporary file in Finder
-                                NSWorkspace.shared.activateFileViewerSelecting([zipTempURL])
-                            }
+                        let zipTempURL = try await fileURLs.accessSecurityScopedResources(accessor: { urls in
+                            try await TemporaryFileStorageService.shared.createZip(from: urls)
+                        })
+                        if let bookmark = try? Bookmark(url: zipTempURL) {
+                            let newItem = ShelfItem(kind: .file(bookmark: bookmark.data), isTemporary: true)
+                            ShelfStateViewModel.shared.add([newItem])
+                        } else {
+                            // Fallback: reveal the temporary file in Finder
+                            NSWorkspace.shared.activateFileViewerSelecting([zipTempURL])
                         }
                     } catch {
                         print("❌ Compress failed: \(error)")
