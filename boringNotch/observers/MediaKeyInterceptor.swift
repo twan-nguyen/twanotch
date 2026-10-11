@@ -12,6 +12,7 @@ import AVFoundation
 
 private let kSystemDefinedEventType = CGEventType(rawValue: 14)!
 
+@MainActor
 final class MediaKeyInterceptor {
     static let shared = MediaKeyInterceptor()
     
@@ -64,16 +65,23 @@ final class MediaKeyInterceptor {
             }
         }
         
+        // Other start() calls or stop() may have run while suspended above. The class is
+        // main-actor isolated, so nothing suspends between this re-check and the tap install.
+        guard eventTap == nil, Defaults[.hudReplacement] else { return }
+        
         let mask = CGEventMask(1 << kSystemDefinedEventType.rawValue)
         eventTap = CGEvent.tapCreate(
             tap: .cghidEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: mask,
-            callback: { _, _, cgEvent, userInfo in
-                guard let userInfo else { return Unmanaged.passRetained(cgEvent) }
+            callback: { _, type, cgEvent, userInfo in
+                guard let userInfo else { return Unmanaged.passUnretained(cgEvent) }
                 let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
-                return interceptor.handleEvent(cgEvent)
+                // The tap source runs on the main run loop, so this callback is always on the main thread.
+                nonisolated(unsafe) let event = cgEvent
+                let consume = MainActor.assumeIsolated { interceptor.handleEvent(type: type, cgEvent: event) }
+                return consume ? nil : Unmanaged.passUnretained(cgEvent)
             },
             userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         )
@@ -90,6 +98,7 @@ final class MediaKeyInterceptor {
     func stop() {
         if let eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
         }
         if let runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
@@ -100,15 +109,24 @@ final class MediaKeyInterceptor {
     
     // MARK: - Event Handling
     
-    private func handleEvent(_ cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
+    /// Returns `true` when the event was handled and must be swallowed, `false` to pass it through.
+    private func handleEvent(type: CGEventType, cgEvent: CGEvent) -> Bool {
+        // macOS disables the tap when the main thread stalls or on user input; turn it back on.
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let eventTap {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
+            }
+            return false
+        }
+        
         // Ensure the CGEvent has a valid type before converting to NSEvent
         guard cgEvent.type != .null else {
-            return Unmanaged.passRetained(cgEvent)
+            return false
         }
         guard let nsEvent = NSEvent(cgEvent: cgEvent),
               nsEvent.type == .systemDefined,
               nsEvent.subtype.rawValue == 8 else {
-            return Unmanaged.passRetained(cgEvent)
+            return false
         }
         
         let data1 = nsEvent.data1
@@ -118,7 +136,7 @@ final class MediaKeyInterceptor {
         // 0xA = key down, 0xB = key up. Only handle key down.
         guard stateByte == 0xA,
               let keyType = NXKeyType(rawValue: keyCode) else {
-            return Unmanaged.passRetained(cgEvent)
+            return false
         }
         
         let flags = nsEvent.modifierFlags
@@ -128,19 +146,19 @@ final class MediaKeyInterceptor {
 
         // Let macOS handle brightness keys this Mac cannot drive (e.g. external displays on a Mac mini).
         if !isBrightnessKeySupported(keyType, command: command) {
-            return Unmanaged.passUnretained(cgEvent)
+            return false
         }
         
         // Handle option key action (without shift)
         if option && !shift {
             if handleOptionAction(for: keyType, command: command) {
-                return nil
+                return true
             }
         }
         
         // Handle normal key press
         handleKeyPress(keyType: keyType, option: option, shift: shift, command: command)
-        return nil
+        return true
     }
     
     private func isBrightnessKeySupported(_ keyType: NXKeyType, command: Bool) -> Bool {
