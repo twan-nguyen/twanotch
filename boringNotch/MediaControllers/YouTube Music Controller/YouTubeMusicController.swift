@@ -17,7 +17,9 @@ final class YouTubeMusicController: MediaControllerProtocol {
     )
 
     private var artworkFetchTask: Task<Void, Never>?
-    
+    /// imageSrc of the artwork currently fetched or being fetched; only touched on the main actor.
+    private var currentArtworkSrc: String?
+
     var playbackStatePublisher: AnyPublisher<PlaybackState, Never> {
         $playbackState.eraseToAnyPublisher()
     }
@@ -389,7 +391,12 @@ final class YouTubeMusicController: MediaControllerProtocol {
             if endpoint == "/shuffle" {
                 let reportedState = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["state"] as? Bool
                 await MainActor.run {
-                    playbackState.isShuffled = reportedState ?? !playbackState.isShuffled
+                    if let reportedState {
+                        playbackState.isShuffled = reportedState
+                    } else if method != "GET" {
+                        // Only a toggle request may flip the flag; a read never does.
+                        playbackState.isShuffled.toggle()
+                    }
                 }
             } else if endpoint == "/repeat-mode" {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -467,27 +474,38 @@ final class YouTubeMusicController: MediaControllerProtocol {
 
         if newState != playbackState {
             playbackState = newState
+        }
 
+        if let artworkURL = response.imageSrc, artworkURL != currentArtworkSrc {
             artworkFetchTask?.cancel()
             artworkFetchTask = nil
+            currentArtworkSrc = artworkURL
 
-            if let artworkURL = response.imageSrc,
-               let url = URL(string: artworkURL) {
+            if let url = URL(string: artworkURL) {
                 artworkFetchTask = Task {
                     do {
                         let data = try await ImageService.shared.fetchImageData(from: url)
                         await MainActor.run { [weak self] in
-                            self?.playbackState.artwork = data
-
+                            guard let self, !Task.isCancelled, self.currentArtworkSrc == artworkURL else { return }
+                            self.playbackState.artwork = data
                         }
-                    } catch { /* ignore */ }
+                    } catch {
+                        // Allow a retry on the next update unless a newer artwork superseded this one.
+                        await MainActor.run { [weak self] in
+                            guard let self, self.currentArtworkSrc == artworkURL else { return }
+                            self.currentArtworkSrc = nil
+                        }
+                    }
                 }
             }
         }
     }
-    
+
     @MainActor
     private func resetPlaybackState() {
+        artworkFetchTask?.cancel()
+        artworkFetchTask = nil
+        currentArtworkSrc = nil
         playbackState = PlaybackState(
             bundleIdentifier: configuration.bundleIdentifier,
             isPlaying: false

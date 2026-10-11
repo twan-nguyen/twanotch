@@ -150,12 +150,15 @@ class SpotifyController: MediaControllerProtocol {
             artworkFetchTask = Task {
                 do {
                     let data = try await ImageService.shared.fetchImageData(from: url)
+                    guard !Task.isCancelled else { return }
 
                     await MainActor.run { [weak self] in
                         guard let self = self else { return }
-                        var updatedState = currentState
-                        updatedState.artwork = data
-                        self.playbackState = updatedState
+                        // Only attach artwork to the live state, and only if the track is still the same.
+                        guard self.playbackState.title == currentState.title,
+                              self.playbackState.artist == currentState.artist,
+                              self.playbackState.album == currentState.album else { return }
+                        self.playbackState.artwork = data
                         self.lastArtworkURL = artworkURL
                         self.artworkFetchTask = nil
                     }
