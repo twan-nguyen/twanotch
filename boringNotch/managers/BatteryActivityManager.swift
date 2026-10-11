@@ -104,7 +104,8 @@ class BatteryActivityManager {
     /// Notifies the observers of battery changes
     /// Checks for changes in battery status and notifies observers
     private func notifyBatteryChanges() {
-        let batteryInfo = getBatteryInfo()
+        // A failed read keeps the previous state instead of reporting a fake unplugged 0% battery.
+        guard let batteryInfo = getBatteryInfo() else { return }
         
         // Check for changes
         if let previousInfo = previousBatteryInfo {
@@ -200,22 +201,12 @@ class BatteryActivityManager {
     /// - Returns: Current battery information
     func initializeBatteryInfo() -> BatteryInfo {
         previousBatteryInfo = getBatteryInfo()
-        guard let batteryInfo = previousBatteryInfo else {
-            return BatteryInfo(
-                isPluggedIn: false,
-                isCharging: false,
-                currentCapacity: 0,
-                maxCapacity: 0,
-                isInLowPowerMode: false,
-                timeToFullCharge: 0
-            )
-        }
-        return batteryInfo
+        return previousBatteryInfo ?? defaultBatteryInfo
     }
 
     /// Get the current battery information
-    /// - Returns: The current battery information
-    private func getBatteryInfo() -> BatteryInfo {
+    /// - Returns: The current internal battery information, or `nil` when it cannot be read
+    private func getBatteryInfo() -> BatteryInfo? {
         do {
             // Get power source information
             guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue() else {
@@ -227,10 +218,14 @@ class BatteryActivityManager {
                 throw BatteryError.batteryInfoUnavailable("No power sources available")
             }
             
-            let source = sources.first!
-            
-            guard let description = IOPSGetPowerSourceDescription(snapshot, source)?.takeUnretainedValue() as? [String: Any] else {
-                throw BatteryError.batteryInfoUnavailable("Could not get power source description")
+            // Other sources (e.g. a UPS) must not be mistaken for the Mac's own battery.
+            let descriptions = sources.compactMap {
+                IOPSGetPowerSourceDescription(snapshot, $0)?.takeUnretainedValue() as? [String: Any]
+            }
+            guard let description = descriptions.first(where: {
+                $0[kIOPSTypeKey] as? String == kIOPSInternalBatteryType
+            }) else {
+                throw BatteryError.batteryInfoUnavailable("No internal battery found")
             }
             
             // Extract required battery parameters with error handling
@@ -269,16 +264,16 @@ class BatteryActivityManager {
             
         } catch BatteryError.powerSourceUnavailable {
             print("⚠️ Error: Power source information unavailable")
-            return defaultBatteryInfo
+            return nil
         } catch BatteryError.batteryInfoUnavailable(let reason) {
             print("⚠️ Error: Battery information unavailable - \(reason)")
-            return defaultBatteryInfo
+            return nil
         } catch BatteryError.batteryParameterMissing(let parameter) {
             print("⚠️ Error: Battery parameter missing - \(parameter)")
-            return defaultBatteryInfo
+            return nil
         } catch {
             print("⚠️ Error: Unexpected error getting battery info - \(error.localizedDescription)")
-            return defaultBatteryInfo
+            return nil
         }
     }
     

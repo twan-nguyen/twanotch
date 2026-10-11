@@ -15,6 +15,7 @@ final class BrightnessManager: ObservableObject {
 	private let visibleDuration: TimeInterval = 1.2
 	private let client = XPCHelperClient.shared
 	private var pendingDelta: Float = 0
+	private var pendingAbsolute: Float?
 	private var isApplying = false
 
 	private init() { refresh() }
@@ -32,34 +33,45 @@ final class BrightnessManager: ObservableObject {
 	@MainActor func setRelative(delta: Float) {
 		// Key repeats accumulate here and are applied one batch at a time, so steps are never lost.
 		pendingDelta += delta
+		startApplyingIfNeeded()
+	}
+
+	/// Latest value wins: it goes through the same serialized loop as `setRelative`, so drag events
+	/// cannot reorder or interleave with key steps.
+	@MainActor func setAbsolute(value: Float) {
+		pendingAbsolute = max(0, min(1, value))
+		startApplyingIfNeeded()
+	}
+
+	@MainActor private func startApplyingIfNeeded() {
 		guard !isApplying else { return }
 		isApplying = true
 		Task { @MainActor in
 			defer { isApplying = false }
-			while pendingDelta != 0 {
-				let step = pendingDelta
-				pendingDelta = 0
-				let starting = await client.currentScreenBrightness() ?? rawBrightness
-				let target = max(0, min(1, starting + step))
+			while pendingAbsolute != nil || pendingDelta != 0 {
+				let target: Float
+				let showsHUD: Bool
+				if let absolute = pendingAbsolute {
+					pendingAbsolute = nil
+					pendingDelta = 0
+					target = absolute
+					showsHUD = false
+				} else {
+					let step = pendingDelta
+					pendingDelta = 0
+					let starting = await client.currentScreenBrightness() ?? rawBrightness
+					target = max(0, min(1, starting + step))
+					showsHUD = true
+				}
 				let ok = await client.setScreenBrightness(target)
 				if ok {
 					publish(brightness: target, touchDate: true)
 				} else {
 					refresh()
 				}
-				BoringViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(target))
-			}
-		}
-	}
-
-	func setAbsolute(value: Float) {
-		let clamped = max(0, min(1, value))
-		Task { @MainActor in
-			let ok = await client.setScreenBrightness(clamped)
-			if ok {
-				publish(brightness: clamped, touchDate: true)
-			} else {
-				refresh()
+				if showsHUD {
+					BoringViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(target))
+				}
 			}
 		}
 	}
@@ -87,6 +99,7 @@ final class KeyboardBacklightManager: ObservableObject {
 	private let visibleDuration: TimeInterval = 1.2
 	private let client = XPCHelperClient.shared
 	private var pendingDelta: Float = 0
+	private var pendingAbsolute: Float?
 	private var isApplying = false
 
 	private init() { refresh() }
@@ -104,38 +117,49 @@ final class KeyboardBacklightManager: ObservableObject {
 	@MainActor func setRelative(delta: Float) {
 		// Key repeats accumulate here and are applied one batch at a time, so steps are never lost.
 		pendingDelta += delta
+		startApplyingIfNeeded()
+	}
+
+	/// Latest value wins: it goes through the same serialized loop as `setRelative`, so drag events
+	/// cannot reorder or interleave with key steps.
+	@MainActor func setAbsolute(value: Float) {
+		pendingAbsolute = max(0, min(1, value))
+		startApplyingIfNeeded()
+	}
+
+	@MainActor private func startApplyingIfNeeded() {
 		guard !isApplying else { return }
 		isApplying = true
 		Task { @MainActor in
 			defer { isApplying = false }
-			while pendingDelta != 0 {
-				let step = pendingDelta
-				pendingDelta = 0
-				let starting = await client.currentKeyboardBrightness() ?? rawBrightness
-				let target = max(0, min(1, starting + step))
+			while pendingAbsolute != nil || pendingDelta != 0 {
+				let target: Float
+				let showsHUD: Bool
+				if let absolute = pendingAbsolute {
+					pendingAbsolute = nil
+					pendingDelta = 0
+					target = absolute
+					showsHUD = false
+				} else {
+					let step = pendingDelta
+					pendingDelta = 0
+					let starting = await client.currentKeyboardBrightness() ?? rawBrightness
+					target = max(0, min(1, starting + step))
+					showsHUD = true
+				}
 				let ok = await client.setKeyboardBrightness(target)
 				if ok {
 					publish(brightness: target, touchDate: true)
 				} else {
 					refresh()
 				}
-				BoringViewCoordinator.shared.toggleSneakPeek(
-					status: true,
-					type: .backlight,
-					value: CGFloat(target)
-				)
-			}
-		}
-	}
-
-	func setAbsolute(value: Float) {
-		let clamped = max(0, min(1, value))
-		Task { @MainActor in
-			let ok = await client.setKeyboardBrightness(clamped)
-			if ok {
-				publish(brightness: clamped, touchDate: true)
-			} else {
-				refresh()
+				if showsHUD {
+					BoringViewCoordinator.shared.toggleSneakPeek(
+						status: true,
+						type: .backlight,
+						value: CGFloat(target)
+					)
+				}
 			}
 		}
 	}

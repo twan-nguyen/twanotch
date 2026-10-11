@@ -144,7 +144,8 @@ final class MediaKeyInterceptor {
         let shift = flags.contains(.shift)
         let command = flags.contains(.command)
 
-        // Let macOS handle brightness keys this Mac cannot drive (e.g. external displays on a Mac mini).
+        // Let macOS handle keys this Mac cannot drive (e.g. external displays on a Mac mini, or an
+        // audio output without volume control).
         if !isBrightnessKeySupported(keyType, command: command) {
             return false
         }
@@ -168,8 +169,10 @@ final class MediaKeyInterceptor {
             return hardware.showsKeyboardBacklight
         case .brightnessUp, .brightnessDown:
             return command ? hardware.showsKeyboardBacklight : hardware.showsScreenBrightness
-        case .soundUp, .soundDown, .mute:
-            return true
+        case .soundUp, .soundDown:
+            return VolumeManager.shared.canAdjustOutputVolume
+        case .mute:
+            return VolumeManager.shared.canControlOutputVolume
         }
     }
 

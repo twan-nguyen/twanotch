@@ -23,7 +23,7 @@ class WebcamManager: NSObject, ObservableObject {
         }
     }
     
-    @Published var authorizationStatus: AVAuthorizationStatus = .notDetermined {
+    @Published var authorizationStatus: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video) {
         didSet {
             objectWillChange.send()
         }
@@ -38,6 +38,13 @@ class WebcamManager: NSObject, ObservableObject {
     private let sessionQueue = DispatchQueue(label: "BoringNotch.WebcamManager.SessionQueue", qos: .userInitiated)
     
     private var isCleaningUp: Bool = false
+
+    private static let sessionStateNotifications: [Notification.Name] = [
+        AVCaptureSession.runtimeErrorNotification,
+        AVCaptureSession.wasInterruptedNotification,
+        AVCaptureSession.didStopRunningNotification,
+        AVCaptureSession.didStartRunningNotification,
+    ]
     /// Whether the session should be running. Read and written only on `sessionQueue`.
     private var wantsSessionRunning = false
     
@@ -180,6 +187,9 @@ class WebcamManager: NSObject, ObservableObject {
                 session.commitConfiguration()
                 
                 self.captureSession = session
+                for name in Self.sessionStateNotifications {
+                    NotificationCenter.default.addObserver(self, selector: #selector(captureSessionStateChanged), name: name, object: session)
+                }
                 
                 // Create and set up preview layer on main thread
                 DispatchQueue.main.async {
@@ -210,6 +220,10 @@ class WebcamManager: NSObject, ObservableObject {
                 existingSession.stopRunning()
             }
             
+            for name in Self.sessionStateNotifications {
+                NotificationCenter.default.removeObserver(self, name: name, object: existingSession)
+            }
+            
             // Then perform configuration cleanup
             existingSession.beginConfiguration()
             
@@ -235,10 +249,41 @@ class WebcamManager: NSObject, ObservableObject {
         // The notification also fires for microphones and other capture devices.
         guard let device = notification.object as? AVCaptureDevice, device.hasMediaType(.video) else { return }
         NSLog("Camera device was disconnected")
+        let disconnectedID = device.uniqueID
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
-            self.stopSession()
+            // Other cameras going away must not interrupt a session that is using a different one.
+            let usesDisconnectedDevice = self.captureSession?.inputs.contains {
+                ($0 as? AVCaptureDeviceInput)?.device.uniqueID == disconnectedID
+            } ?? false
+            if usesDisconnectedDevice {
+                self.stopSession()
+            }
             self.checkCameraAvailability()
+        }
+    }
+
+    /// Runtime errors, interruptions and system-initiated stops leave the session not running while
+    /// the preview layer freezes, so mirror the real session state into `isSessionRunning`.
+    @objc private func captureSessionStateChanged(notification: Notification) {
+        guard let session = notification.object as? AVCaptureSession else { return }
+        let name = notification.name
+        let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError
+        sessionQueue.async { [weak self] in
+            guard let self = self, session === self.captureSession else { return }
+            switch name {
+            case AVCaptureSession.runtimeErrorNotification:
+                NSLog("Capture session runtime error: \(error?.localizedDescription ?? "unknown")")
+            case AVCaptureSession.wasInterruptedNotification:
+                NSLog("Capture session was interrupted")
+                DispatchQueue.main.async {
+                    self.isSessionRunning = false
+                }
+                return
+            default:
+                break
+            }
+            self.updateSessionState()
         }
     }
 
