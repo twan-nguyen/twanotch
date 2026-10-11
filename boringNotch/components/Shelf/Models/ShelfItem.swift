@@ -7,6 +7,7 @@
 
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 enum ShelfItemKind: Codable, Equatable, Sendable {
     case file(bookmark: Data)
@@ -63,7 +64,8 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
         switch kind {
         case .file(let bookmarkData):
             let bookmark = Bookmark(data: bookmarkData)
-            guard let resolvedURL = bookmark.resolveURL() else { return "" }
+            // Never mount a share just to label an item; an unmounted volume falls back to the stored name.
+            guard let resolvedURL = bookmark.resolve(mountIfNeeded: false).url else { return bookmark.cachedName ?? "" }
             
             // Check for stored data files (text blocks, weblocs, etc.) to provide friendly names
             if resolvedURL.pathExtension.lowercased() == "json" && resolvedURL.path.contains("TextBlocks") {
@@ -136,7 +138,7 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
         if let resolvedURL = ShelfStateViewModel.shared.resolveFileURL(for: self) {
             return NSWorkspace.shared.icon(forFile: resolvedURL.path)
         }
-        return NSImage()
+        return NSWorkspace.shared.icon(for: .item)
     }
     
 
@@ -220,7 +222,8 @@ private extension ShelfItemKind {
 private extension ShelfItem {
     func resolvedContext(for bookmarkData: Data) -> (url: URL, bookmark: Data)? {
         // Resolve once: both the URL and the refreshed data come from the same resolution.
-        let result = Bookmark(data: bookmarkData).resolve()
+        // This backs getters and cleanup, so it must not mount an unavailable volume.
+        let result = Bookmark(data: bookmarkData).resolve(mountIfNeeded: false)
         if let url = result.url {
             return (url, result.refreshedData ?? bookmarkData)
         }

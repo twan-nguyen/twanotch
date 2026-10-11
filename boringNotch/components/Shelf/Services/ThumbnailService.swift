@@ -13,7 +13,11 @@ import UniformTypeIdentifiers
 actor ThumbnailService {
     static let shared = ThumbnailService()
 
+    private static let maxCachedThumbnails = 200
+
     private var cache: [String: NSImage] = [:]
+    // Insertion order of `cache` keys, used to evict the oldest entries once the cache is full.
+    private var cacheOrder: [String] = []
     private var pendingRequests: [String: Task<NSImage?, Never>] = [:]
     private let thumbnailGenerator = QLThumbnailGenerator.shared
 
@@ -33,7 +37,7 @@ actor ThumbnailService {
         let task = Task<NSImage?, Never> {
             let thumbnail = await generateQuickLookThumbnail(for: url, size: size)
             if let thumbnail = thumbnail {
-                cache[cacheKey] = thumbnail
+                store(thumbnail, forKey: cacheKey)
             }
             pendingRequests[cacheKey] = nil
             return thumbnail
@@ -45,6 +49,7 @@ actor ThumbnailService {
     
     func clearCache() {
         cache.removeAll()
+        cacheOrder.removeAll()
     }
     
     func clearCache(for url: URL) {
@@ -54,6 +59,16 @@ actor ThumbnailService {
             guard let sizeSeparator = key.lastIndex(of: "_") else { return true }
             let keyPath = key[..<sizeSeparator]
             return keyPath != path && !keyPath.hasPrefix(path + "/")
+        }
+        cacheOrder.removeAll { cache[$0] == nil }
+    }
+
+    private func store(_ thumbnail: NSImage, forKey key: String) {
+        if cache.updateValue(thumbnail, forKey: key) == nil {
+            cacheOrder.append(key)
+        }
+        while cacheOrder.count > Self.maxCachedThumbnails {
+            cache[cacheOrder.removeFirst()] = nil
         }
     }
     

@@ -361,8 +361,10 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
 
             // Auto-remove items from shelf if enabled and drag succeeded
             if Defaults[.autoRemoveShelfItems] && !operation.isEmpty && !consumedByShare {
+                // The receiving app may still be copying asynchronously, so a temporary item's
+                // stored file is left for the orphan cleanup instead of being deleted right away.
                 for item in draggedItems {
-                    ShelfStateViewModel.shared.remove(item)
+                    ShelfStateViewModel.shared.remove(item, deleteStoredFile: false)
                 }
             }
             draggedItems.removeAll()

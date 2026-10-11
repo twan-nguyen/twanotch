@@ -33,25 +33,31 @@ struct Bookmark: Sendable, Equatable, Codable {
         }
     }
 
-    func resolve() -> (url: URL?, refreshedData: Data?) {
-        guard !data.isEmpty else { return (nil, nil) }
+    /// Resolves the bookmark. Pass `mountIfNeeded: false` on display and validation paths so a
+    /// bookmark on an unmounted network volume fails fast instead of trying to mount the share
+    /// (which blocks the caller and can raise a login prompt). Explicit user actions may mount.
+    /// `error` is set when resolution fails so callers can tell a missing file from a transient failure.
+    func resolve(mountIfNeeded: Bool = true) -> (url: URL?, refreshedData: Data?, error: Error?) {
+        guard !data.isEmpty else { return (nil, nil, nil) }
         var isStale = false
+        var options: URL.BookmarkResolutionOptions = [.withSecurityScope]
+        if !mountIfNeeded { options.insert(.withoutMounting) }
         do {
             let url = try URL(
                 resolvingBookmarkData: data,
-                options: [.withSecurityScope],
+                options: options,
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             )
             // Creating a security-scoped bookmark needs active access to the resource in the sandbox.
             if isStale, let newData = url.accessSecurityScopedResource(accessor: { try? $0.bookmarkData(options: [.withSecurityScope]) }) {
                 NSLog("⚠️ Bookmark was stale for \(url.path), refreshed")
-                return (url, newData)
+                return (url, newData, nil)
             }
-            return (url, nil)
+            return (url, nil, nil)
         } catch {
             NSLog("❌ Failed to resolve bookmark: \(error.localizedDescription)")
-            return (nil, nil)
+            return (nil, nil, error)
         }
     }
 
@@ -75,6 +81,8 @@ struct Bookmark: Sendable, Equatable, Codable {
         case missing
         /// The file lives on a volume that is not mounted right now, so its state is unknown.
         case volumeUnavailable
+        /// Resolution failed for a reason that does not prove the file is gone (agent, permission, ...).
+        case unknown
     }
 
     func validate() async -> Bool {
@@ -82,20 +90,37 @@ struct Bookmark: Sendable, Equatable, Codable {
     }
 
     func validationState() async -> ValidationState {
-        let (url, _) = resolve()
-        if let url, url.accessSecurityScopedResource(accessor: { FileManager.default.fileExists(atPath: $0.path) }) {
-            return .valid
+        guard !data.isEmpty else { return .missing }
+        let result = resolve(mountIfNeeded: false)
+        if let url = result.url {
+            if url.accessSecurityScopedResource(accessor: { FileManager.default.fileExists(atPath: $0.path) }) {
+                return .valid
+            }
+            return volumeIsMounted ? .missing : .volumeUnavailable
         }
-        return bookmarkedVolumeIsMounted ? .missing : .volumeUnavailable
+        guard volumeIsMounted else { return .volumeUnavailable }
+        // Only a definitive "no such file" proves the item is gone; anything else may be transient.
+        if let error = result.error as NSError?,
+           error.domain == NSCocoaErrorDomain,
+           error.code == CocoaError.fileNoSuchFile.rawValue || error.code == CocoaError.fileReadNoSuchFile.rawValue {
+            return .missing
+        }
+        return .unknown
     }
 
     /// Whether the volume recorded in the bookmark is currently mounted. Defaults to true when
     /// the volume cannot be read from the bookmark, so only a positively unmounted volume is spared.
-    private var bookmarkedVolumeIsMounted: Bool {
+    var volumeIsMounted: Bool {
         guard !data.isEmpty,
               let volumeURL = URL.resourceValues(forKeys: [.volumeURLKey], fromBookmarkData: data)?.volume
         else { return true }
         return FileManager.default.fileExists(atPath: volumeURL.path)
+    }
+
+    /// The file name stored in the bookmark, readable without touching the file or its volume.
+    var cachedName: String? {
+        guard !data.isEmpty else { return nil }
+        return URL.resourceValues(forKeys: [.nameKey], fromBookmarkData: data)?.name
     }
 
     func withAccess<T: Sendable>(_ block: @Sendable (URL) async throws -> T) async rethrows -> T? {

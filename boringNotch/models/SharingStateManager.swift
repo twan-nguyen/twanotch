@@ -69,6 +69,9 @@ final class SharingStateManager: ObservableObject {
 }
 
 final class SharingLifecycleDelegate: NSObject, NSSharingServiceDelegate, NSSharingServicePickerDelegate {
+	/// Upper bound for a service that reported willShareItems but never reports completion.
+	private static let startedServiceTimeout: Duration = .seconds(600)
+
 	let id: UUID
 	private let onEnd: () -> Void
 	private let onBegin: () -> Void
@@ -103,10 +106,10 @@ final class SharingLifecycleDelegate: NSObject, NSSharingServiceDelegate, NSShar
 		startTimeoutFallback()
 	}
 	
-	private func startTimeoutFallback() {
+	private func startTimeoutFallback(after delay: Duration = .seconds(2)) {
 		timeoutTask?.cancel()
 		timeoutTask = Task { @MainActor [weak self] in
-			try? await Task.sleep(for: .seconds(2))
+			try? await Task.sleep(for: delay)
 			guard let self = self, !Task.isCancelled else { return }
 			if !self.finished {
 				self.finishIfNeeded()
@@ -137,6 +140,10 @@ final class SharingLifecycleDelegate: NSObject, NSSharingServiceDelegate, NSShar
 		startTimeoutFallback()
 	}
 
+	func sharingServicePicker(_ sharingServicePicker: NSSharingServicePicker, delegateFor sharingService: NSSharingService) -> NSSharingServiceDelegate? {
+		self
+	}
+
 	// MARK: - NSSharingServiceDelegate
 
 	func sharingService(_ sharingService: NSSharingService, willShareItems items: [Any]) {
@@ -144,10 +151,10 @@ final class SharingLifecycleDelegate: NSObject, NSSharingServiceDelegate, NSShar
 			onBegin()
 		}
 		serviceInProgress = true
-		// The service has started and will report didShare/didFail, so the fallback is no longer
-		// needed; ending early would release file access and temp files the service is still reading.
-		timeoutTask?.cancel()
-		timeoutTask = nil
+		// The service has started and will normally report didShare/didFail. Ending early would
+		// release file access and temp files it is still reading, so only a long fallback remains
+		// to keep a service that never reports back from holding the notch open indefinitely.
+		startTimeoutFallback(after: Self.startedServiceTimeout)
 	}
 
 	func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {

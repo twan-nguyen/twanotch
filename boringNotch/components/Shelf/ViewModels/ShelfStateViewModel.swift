@@ -19,14 +19,36 @@ final class ShelfStateViewModel: ObservableObject {
 
     var isEmpty: Bool { items.isEmpty }
 
-    // Queue for deferred bookmark updates to avoid publishing during view updates
-    private var pendingBookmarkUpdates: [ShelfItem.ID: Data] = [:]
-    private var updateTask: Task<Void, Never>?
+    // A stale bookmark is persisted at most once per item per session, so a bookmark that
+    // resolves as stale every time cannot rewrite the items file in a loop.
+    private var refreshedBookmarkIDs: Set<ShelfItem.ID> = []
     // Resolving a bookmark touches the file system; reuse the key while an item's content is unchanged.
     private var identityKeyCache: [ShelfItem.ID: (kind: ShelfItemKind, key: String)] = [:]
 
     private init() {
         items = ShelfPersistenceService.shared.load()
+        // Only a fully decoded items file proves which stored files are still referenced.
+        if ShelfPersistenceService.shared.loadedCleanly {
+            removeOrphanedStoredFiles()
+        }
+    }
+
+    /// Deletes stored shelf files that no remaining item points to (e.g. files whose deletion was
+    /// deferred after being dragged out). Gives up if any item cannot be resolved, because its
+    /// file might be one of the candidates.
+    private func removeOrphanedStoredFiles() {
+        var referenced: [URL] = []
+        for item in items {
+            guard case .file(let data) = item.kind else { continue }
+            let bookmark = Bookmark(data: data)
+            if let url = bookmark.resolve(mountIfNeeded: false).url {
+                referenced.append(url)
+            } else if bookmark.volumeIsMounted {
+                NSLog("Skipping shelf orphan cleanup: an item could not be resolved")
+                return
+            }
+        }
+        TemporaryFileStorageService.shared.removeOrphanedShelfFiles(keeping: referenced)
     }
 
 
@@ -57,9 +79,20 @@ final class ShelfStateViewModel: ObservableObject {
         items = merged
     }
 
-    func remove(_ item: ShelfItem) {
-        item.cleanupStoredData()
+    /// - Parameter deleteStoredFile: Pass false to keep a temporary item's stored file on disk, for
+    ///   when another app may still be reading it (e.g. right after a drag); orphan cleanup removes it later.
+    func remove(_ item: ShelfItem, deleteStoredFile: Bool = true) {
+        invalidateThumbnail(for: item)
+        if deleteStoredFile {
+            item.cleanupStoredData()
+        }
         items.removeAll { $0.id == item.id }
+        refreshedBookmarkIDs.remove(item.id)
+    }
+
+    private func invalidateThumbnail(for item: ShelfItem) {
+        guard let url = item.fileURL else { return }
+        Task { await ThumbnailService.shared.clearCache(for: url) }
     }
 
     func updateBookmark(for item: ShelfItem, bookmark: Data) {
@@ -68,28 +101,6 @@ final class ShelfStateViewModel: ObservableObject {
             items[idx].kind = .file(bookmark: bookmark)
         }
     }
-
-    private func scheduleDeferredBookmarkUpdate(for item: ShelfItem, bookmark: Data) {
-        pendingBookmarkUpdates[item.id] = bookmark
-        
-        // Cancel existing task and schedule a new one
-        updateTask?.cancel()
-        updateTask = Task { @MainActor [weak self] in
-            await Task.yield()
-            
-            guard let self = self else { return }
-            
-            for (itemID, bookmarkData) in self.pendingBookmarkUpdates {
-                if let idx = self.items.firstIndex(where: { $0.id == itemID }),
-                   case .file = self.items[idx].kind {
-                    self.items[idx].kind = .file(bookmark: bookmarkData)
-                }
-            }
-            
-            self.pendingBookmarkUpdates.removeAll()
-        }
-    }
-
 
     func load(_ providers: [NSItemProvider]) {
         guard !providers.isEmpty else { return }
@@ -119,6 +130,7 @@ final class ShelfStateViewModel: ObservableObject {
             // `items` may have changed while validating (drops, removals), so act on the current
             // array instead of writing back the snapshot.
             for item in self.items where invalidIDs.contains(item.id) {
+                self.invalidateThumbnail(for: item)
                 item.cleanupStoredData()
             }
             self.items.removeAll { invalidIDs.contains($0.id) }
@@ -126,22 +138,21 @@ final class ShelfStateViewModel: ObservableObject {
     }
 
 
+    /// Read-only resolution for getters and display: never mounts a volume and never writes state,
+    /// so it is safe to call while views render.
     func resolveFileURL(for item: ShelfItem) -> URL? {
         guard case .file(let bookmarkData) = item.kind else { return nil }
-        let bookmark = Bookmark(data: bookmarkData)
-        let result = bookmark.resolve()
-        if let refreshed = result.refreshedData, refreshed != bookmarkData {
-            NSLog("Bookmark for \(item) stale; refreshing")
-            scheduleDeferredBookmarkUpdate(for: item, bookmark: refreshed)
-        }
-        return result.url
+        return Bookmark(data: bookmarkData).resolve(mountIfNeeded: false).url
     }
 
+    /// Resolution for user-initiated actions (drag, share, copy): may mount a volume and persists a
+    /// refreshed bookmark, at most once per item per session.
     func resolveAndUpdateBookmark(for item: ShelfItem) -> URL? {
         guard case .file(let bookmarkData) = item.kind else { return nil }
         let bookmark = Bookmark(data: bookmarkData)
         let result = bookmark.resolve()
-        if let refreshed = result.refreshedData, refreshed != bookmarkData {
+        if let refreshed = result.refreshedData, refreshed != bookmarkData,
+           refreshedBookmarkIDs.insert(item.id).inserted {
             NSLog("Bookmark for \(item) stale; refreshing")
             updateBookmark(for: item, bookmark: refreshed)
         }

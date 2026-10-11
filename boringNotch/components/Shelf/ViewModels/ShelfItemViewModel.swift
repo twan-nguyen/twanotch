@@ -159,8 +159,9 @@ final class ShelfItemViewModel: ObservableObject {
                 }
             }
             
-            // Without a view nothing can be presented, so do not start a session that would never end.
-            guard !itemsToShare.isEmpty, let view else { return }
+            // Without a view in a window (e.g. the notch closed meanwhile) the picker is never shown,
+            // so no delegate callback would end the session. Do not start one.
+            guard !itemsToShare.isEmpty, let view, view.window != nil else { return }
              
             // Start security-scoped access for all file URLs and keep it active during sharing.
             // The session owns exactly the URLs it started, so another session cannot stop them.
@@ -779,6 +780,7 @@ final class ShelfItemViewModel: ObservableObject {
                                     NSLog("🔐 Rename: moving from \(fileURL.path) to \(newURL.path) (securityScope=\(didStart))")
 
                                     try FileManager.default.moveItem(at: fileURL, to: newURL)
+                                    await ThumbnailService.shared.clearCache(for: fileURL)
 
                                     if let newBookmark = try? Bookmark(url: newURL) {
                                         ShelfStateViewModel.shared.updateBookmark(for: item, bookmark: newBookmark.data)

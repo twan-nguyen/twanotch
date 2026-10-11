@@ -21,8 +21,9 @@ class QuickShareService: ObservableObject {
     
     @Published var availableProviders: [QuickShareProvider] = []
     @Published var isPickerOpen = false
+    // Used for the provider list and as a first candidate; a service has a single delegate, so one
+    // that is still driving another session is never reused (see `availableService`).
     private var cachedServices: [String: NSSharingService] = [:]
-    private var lifecycleDelegate: SharingLifecycleDelegate?
    
     init() {
         Task {
@@ -113,10 +114,11 @@ class QuickShareService: ObservableObject {
     func shareFilesOrText(_ items: [Any], using provider: QuickShareProvider, from view: NSView?, onEnd: (() -> Void)? = nil) async {
         let fileURLs = items.compactMap { $0 as? URL }.filter { $0.isFileURL }
 
-        let directService = cachedServices[provider.id].flatMap { $0.canPerform(withItems: items) ? $0 : nil }
-        // Without a service or a view to anchor the picker nothing is presented, so no delegate
-        // callback would ever report the end. Bail out before the session starts.
-        guard directService != nil || view != nil else {
+        let directService = await availableService(for: provider, items: items)
+        // Without a service or a view in a window to anchor the picker nothing is presented (the notch
+        // may have closed while items were loading), so no delegate callback would ever report the end.
+        // Bail out before the session starts.
+        guard directService != nil || view?.window != nil else {
             onEnd?()
             return
         }
@@ -126,22 +128,20 @@ class QuickShareService: ObservableObject {
         let accessedURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
 
         // Setup lifecycle delegate to keep notch open during picker/service
-        let delegate = SharingStateManager.shared.makeDelegate { [weak self] in
-            self?.lifecycleDelegate = nil
+        let delegate = SharingStateManager.shared.makeDelegate {
             NSLog("Stopping sharing access to URLs")
             for url in accessedURLs {
                 url.stopAccessingSecurityScopedResource()
             }
             onEnd?()
         }
-        lifecycleDelegate = delegate
 
         if let svc = directService {
             // For direct service path, explicitly mark service interaction start
             delegate.markServiceBegan()
             svc.delegate = delegate
             svc.perform(withItems: items)
-        } else if let view {
+        } else if let view, view.window != nil {
             let picker = NSSharingServicePicker(items: items)
             picker.delegate = delegate
             delegate.markPickerBegan()
@@ -150,6 +150,17 @@ class QuickShareService: ObservableObject {
     }
 
 // MARK: - SharingServiceDelegate
+
+    /// Returns a service that can perform `items` and is not already delegated to another session,
+    /// so a new session can never take over (and cut short) a running one. Falls back to nil, which
+    /// makes the caller use a picker with its own services.
+    @MainActor
+    private func availableService(for provider: QuickShareProvider, items: [Any]) async -> NSSharingService? {
+        guard let cached = cachedServices[provider.id], cached.canPerform(withItems: items) else { return nil }
+        if cached.delegate == nil { return cached }
+        let fresh = await ShareServiceFinder().findApplicableServices(for: items)
+        return fresh.first { $0.title == provider.id && $0.delegate == nil && $0.canPerform(withItems: items) }
+    }
 
 private class SharingServiceDelegate: NSObject {}
     
@@ -192,7 +203,8 @@ private class SharingServiceDelegate: NSObject {}
         let items = await ShelfStateViewModel.shared.items
 
         for itm in items {
-            if let resolved = await ShelfStateViewModel.shared.resolveAndUpdateBookmark(for: itm) {
+            // Only matching paths here: avoid mounting shares or rewriting bookmarks of unrelated items.
+            if let resolved = await ShelfStateViewModel.shared.resolveFileURL(for: itm) {
                 if resolved.standardizedFileURL.path == fileURL.standardizedFileURL.path {
                     return resolved
                 }

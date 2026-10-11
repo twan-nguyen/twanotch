@@ -56,6 +56,42 @@ class TemporaryFileStorageService {
         }
     }
     
+    /// Deletes the per-file folders (`ShelfFiles/<uuid>`) that none of `referencedURLs` lives in.
+    /// Only direct UUID-named subfolders of the ShelfFiles root are ever touched.
+    func removeOrphanedShelfFiles(keeping referencedURLs: [URL]) {
+        let fm = FileManager.default
+        let root = shelfFilesDirectory
+        let rootPath = root.resolvingSymlinksInPath().path
+
+        var referencedFolders = Set<String>()
+        for url in referencedURLs {
+            let path = url.resolvingSymlinksInPath().path
+            guard path.hasPrefix(rootPath + "/") else { continue }
+            if let folder = path.dropFirst(rootPath.count + 1).split(separator: "/").first {
+                referencedFolders.insert(String(folder))
+            }
+        }
+
+        guard let entries = try? fm.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: []
+        ) else { return }
+
+        for entry in entries {
+            let name = entry.lastPathComponent
+            guard UUID(uuidString: name) != nil, !referencedFolders.contains(name) else { continue }
+            let values = try? entry.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard values?.isDirectory == true, values?.isSymbolicLink != true else { continue }
+            do {
+                try fm.removeItem(at: entry)
+                print("Removed orphaned shelf folder: \(entry.path)")
+            } catch {
+                print("Failed to remove orphaned shelf folder \(entry.path): \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Storage locations
 
     /// Files the user keeps on the shelf (generated files, data drops). They are persisted by

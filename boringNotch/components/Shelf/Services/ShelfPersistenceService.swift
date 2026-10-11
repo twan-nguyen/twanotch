@@ -18,6 +18,9 @@ final class ShelfPersistenceService {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     private var savingDisabled = false
+    private var loggedSavingDisabled = false
+    /// True only when the last `load()` decoded every stored item without needing a quarantine.
+    private(set) var loadedCleanly = false
 
     private init() {
         let fm = FileManager.default
@@ -31,6 +34,7 @@ final class ShelfPersistenceService {
     }
 
     func load() -> [ShelfItem] {
+        loadedCleanly = false
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
 
         let data: Data
@@ -44,6 +48,7 @@ final class ShelfPersistenceService {
         
         // Try to decode as array first (normal case)
         if let items = try? decoder.decode([ShelfItem].self, from: data) {
+            loadedCleanly = true
             return items
         }
         
@@ -74,6 +79,9 @@ final class ShelfPersistenceService {
                 print("📦 Successfully loaded \(validItems.count) shelf items, \(failedCount) could not be decoded")
                 // The next save rewrites the file with only the valid items, so keep the undecodable ones.
                 quarantineCorruptFile(keepOriginal: !validItems.isEmpty)
+                // Rewrite the file with the valid items now, otherwise every launch would
+                // copy the same undecodable file into a new quarantine copy.
+                if !validItems.isEmpty { save(validItems) }
             }
             
             return validItems
@@ -107,7 +115,13 @@ final class ShelfPersistenceService {
     }
 
     func save(_ items: [ShelfItem]) {
-        guard !savingDisabled else { return }
+        guard !savingDisabled else {
+            if !loggedSavingDisabled {
+                loggedSavingDisabled = true
+                NSLog("❌ Shelf changes are not being saved: saving is disabled to protect unreadable shelf data")
+            }
+            return
+        }
         do {
             let data = try encoder.encode(items)
             try data.write(to: fileURL, options: Data.WritingOptions.atomic)
