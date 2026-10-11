@@ -25,6 +25,18 @@ final class VolumeManager: NSObject, ObservableObject {
     private var previousVolumeBeforeMute: Float32 = 0.2
     private var softwareMuted: Bool = false
 
+    // Listener blocks and queue must be identical on add and remove for CoreAudio to match them.
+    private let listenerQueue = DispatchQueue.main
+    private var listenedDeviceID = AudioObjectID(kAudioObjectUnknown)
+    private var listenedAddresses: [AudioObjectPropertyAddress] = []
+    private lazy var deviceListener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+        self?.fetchCurrentVolume()
+    }
+    private lazy var defaultDeviceListener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+        self?.attachDeviceListeners()
+        self?.fetchCurrentVolume()
+    }
+
     private override init() {
         super.init()
         setupAudioListener()
@@ -170,29 +182,35 @@ final class VolumeManager: NSObject, ObservableObject {
     }
 
     private func setupAudioListener() {
-        let deviceID = systemOutputDeviceID()
-        guard deviceID != kAudioObjectUnknown else { return }
-
+        // The default-device listener is always registered, even when no output device exists yet,
+        // so a device that appears or changes later is picked up.
         var defaultDevAddr = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
         AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject), &defaultDevAddr, nil
-        ) { _, _ in
-            self.fetchCurrentVolume()
-        }
+            AudioObjectID(kAudioObjectSystemObject), &defaultDevAddr, listenerQueue, defaultDeviceListener
+        )
+        attachDeviceListeners()
+    }
 
-        var masterAddr = AudioObjectPropertyAddress(
+    /// Moves the volume/mute listeners from the previously observed device to the current default output device.
+    private func attachDeviceListeners() {
+        detachDeviceListeners()
+
+        let deviceID = systemOutputDeviceID()
+        guard deviceID != kAudioObjectUnknown else { return }
+
+        var addresses: [AudioObjectPropertyAddress] = []
+        let masterAddr = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyVolumeScalar,
             mScope: kAudioDevicePropertyScopeOutput,
             mElement: kAudioObjectPropertyElementMain
         )
-        if AudioObjectHasProperty(deviceID, &masterAddr) {
-            AudioObjectAddPropertyListenerBlock(deviceID, &masterAddr, nil) { _, _ in
-                self.fetchCurrentVolume()
-            }
+        var probe = masterAddr
+        if AudioObjectHasProperty(deviceID, &probe) {
+            addresses.append(masterAddr)
         } else {
             for ch in [UInt32(1), UInt32(2)] {
                 var chAddr = AudioObjectPropertyAddress(
@@ -201,24 +219,34 @@ final class VolumeManager: NSObject, ObservableObject {
                     mElement: ch
                 )
                 if AudioObjectHasProperty(deviceID, &chAddr) {
-                    AudioObjectAddPropertyListenerBlock(deviceID, &chAddr, nil) { _, _ in
-                        self.fetchCurrentVolume()
-                    }
+                    addresses.append(chAddr)
                 }
             }
         }
 
-        // Mute
         var muteAddr = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyMute,
             mScope: kAudioDevicePropertyScopeOutput,
             mElement: kAudioObjectPropertyElementMain
         )
         if AudioObjectHasProperty(deviceID, &muteAddr) {
-            AudioObjectAddPropertyListenerBlock(deviceID, &muteAddr, nil) { _, _ in
-                self.fetchCurrentVolume()
-            }
+            addresses.append(muteAddr)
         }
+
+        for var address in addresses {
+            AudioObjectAddPropertyListenerBlock(deviceID, &address, listenerQueue, deviceListener)
+        }
+        listenedDeviceID = deviceID
+        listenedAddresses = addresses
+    }
+
+    private func detachDeviceListeners() {
+        guard listenedDeviceID != kAudioObjectUnknown else { return }
+        for var address in listenedAddresses {
+            AudioObjectRemovePropertyListenerBlock(listenedDeviceID, &address, listenerQueue, deviceListener)
+        }
+        listenedDeviceID = kAudioObjectUnknown
+        listenedAddresses = []
     }
 
     private func readVolumeInternal() -> Float32? {

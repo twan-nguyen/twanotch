@@ -38,6 +38,8 @@ class WebcamManager: NSObject, ObservableObject {
     private let sessionQueue = DispatchQueue(label: "BoringNotch.WebcamManager.SessionQueue", qos: .userInitiated)
     
     private var isCleaningUp: Bool = false
+    /// Whether the session should be running. Read and written only on `sessionQueue`.
+    private var wantsSessionRunning = false
     
     // MARK: - Constants
     
@@ -131,20 +133,14 @@ class WebcamManager: NSObject, ObservableObject {
         }
     }
     
-    /// Sets up the capture session with a completion handler
-    private func setupCaptureSession(completion: @escaping (Bool) -> Void) {
-        sessionQueue.async { [weak self] in
-            guard let self = self else { 
-                completion(false)
-                return 
-            }
-            
-            // Clean up any existing session before creating a new one
-            self.cleanupExistingSession()
-            
-            let session = AVCaptureSession()
-            
-            do {
+    /// Sets up the capture session. Must be called on `sessionQueue`; returns whether setup succeeded.
+    private func setupCaptureSession() -> Bool {
+        // Clean up any existing session before creating a new one
+        cleanupExistingSession()
+        
+        let session = AVCaptureSession()
+        
+        do {
                 // Get available devices and prefer external camera if available
                 let discoverySession = AVCaptureDevice.DiscoverySession(
                     deviceTypes: [.external, .builtInWideAngleCamera],
@@ -158,8 +154,7 @@ class WebcamManager: NSObject, ObservableObject {
                         self.isSessionRunning = false
                         self.cameraAvailable = false
                     }
-                    completion(false)
-                    return
+                    return false
                 }
                 
                 NSLog("Using camera: \(videoDevice.localizedName)")
@@ -192,12 +187,10 @@ class WebcamManager: NSObject, ObservableObject {
                     let previewLayer = AVCaptureVideoPreviewLayer(session: session)
                     previewLayer.videoGravity = .resizeAspectFill
                     self.previewLayer = previewLayer
-                    
-                    // Setup is complete, let the caller know
-                    completion(true)
                 }
                 
                 NSLog("Capture session setup completed successfully")
+                return true
             } catch {
                 NSLog("Failed to setup capture session: \(error.localizedDescription)")
                 DispatchQueue.main.async {
@@ -205,9 +198,8 @@ class WebcamManager: NSObject, ObservableObject {
                     self.cameraAvailable = false
                     self.previewLayer = nil
                 }
-                completion(false)
+                return false
             }
-        }
     }
     
     /// Cleans up an existing capture session, removing all inputs and outputs
@@ -268,40 +260,34 @@ class WebcamManager: NSObject, ObservableObject {
     func startSession() {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
+            self.wantsSessionRunning = true
             
-            // If no session exists, create new session
-            if self.captureSession == nil {
-                self.setupCaptureSession { success in
-                    if success {
-                        // Only start the session if setup was successful
-                        self.startRunningCaptureSession()
-                    }
-                }
-            } else {
-                // Session already exists, just start it
-                self.startRunningCaptureSession()
+            // If no session exists, create new session; setup runs inline so a later stop cannot interleave
+            if self.captureSession == nil, !self.setupCaptureSession() {
+                return
             }
+            self.startRunningCaptureSession()
         }
     }
     
+    /// Must be called on `sessionQueue`.
     private func startRunningCaptureSession() {
-        sessionQueue.async { [weak self] in
-            guard let self = self, let session = self.captureSession, !session.isRunning else {
-                return
-            }
-            
-            session.startRunning()
-            
-            // Update state on main thread
-            self.updateSessionState()
-            
-            NSLog("Capture session started successfully")
+        guard wantsSessionRunning, let session = captureSession, !session.isRunning else {
+            return
         }
+        
+        session.startRunning()
+        
+        // Update state on main thread
+        updateSessionState()
+        
+        NSLog("Capture session started successfully")
     }
     
     func stopSession() {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
+            self.wantsSessionRunning = false
             
             // Update state to indicate we're stopping
             DispatchQueue.main.async {

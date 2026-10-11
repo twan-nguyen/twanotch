@@ -92,6 +92,8 @@ struct OpenNotchHUD: View {
             VolumeManager.shared.setAbsolute(Float32(newVal))
         case .brightness:
             BrightnessManager.shared.setAbsolute(value: Float32(newVal))
+        case .backlight:
+            KeyboardBacklightManager.shared.setAbsolute(value: Float32(newVal))
         default:
             break
         }

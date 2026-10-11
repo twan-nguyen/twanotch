@@ -116,6 +116,10 @@ struct AudioSpectrumView: NSViewRepresentable {
     func updateNSView(_ nsView: AudioSpectrum, context: Context) {
         nsView.setPlaying(isPlaying)
     }
+
+    static func dismantleNSView(_ nsView: AudioSpectrum, coordinator: ()) {
+        nsView.setPlaying(false)
+    }
 }
 
 #Preview {
