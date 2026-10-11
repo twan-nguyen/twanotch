@@ -117,9 +117,9 @@ class AppleMusicController: MediaControllerProtocol {
 
     func setFavorite(_ favorite: Bool) async {
         let script = """
-        tell application \"Music\"
+        tell application "Music"
             try
-                set favorited of current track to " + (favorite ? "true" : "false") + "
+                set favorited of current track to \(favorite ? "true" : "false")
             end try
         end tell
         """
@@ -131,24 +131,35 @@ class AppleMusicController: MediaControllerProtocol {
     func updatePlaybackInfo() async {
         guard let descriptor = try? await fetchPlaybackInfoAsync() else { return }
         guard descriptor.numberOfItems >= 11 else { return }
-        var updatedState = self.playbackState
-        
-        updatedState.isPlaying = descriptor.atIndex(1)?.booleanValue ?? false
-        updatedState.title = descriptor.atIndex(2)?.stringValue ?? "Unknown"
-        updatedState.artist = descriptor.atIndex(3)?.stringValue ?? "Unknown"
-        updatedState.album = descriptor.atIndex(4)?.stringValue ?? "Unknown"
-        updatedState.currentTime = descriptor.atIndex(5)?.doubleValue ?? 0
-        updatedState.duration = descriptor.atIndex(6)?.doubleValue ?? 0
-        updatedState.isShuffled = descriptor.atIndex(7)?.booleanValue ?? false
+        let isPlaying = descriptor.atIndex(1)?.booleanValue ?? false
+        let title = descriptor.atIndex(2)?.stringValue ?? "Unknown"
+        let artist = descriptor.atIndex(3)?.stringValue ?? "Unknown"
+        let album = descriptor.atIndex(4)?.stringValue ?? "Unknown"
+        let currentTime = descriptor.atIndex(5)?.doubleValue ?? 0
+        let duration = descriptor.atIndex(6)?.doubleValue ?? 0
+        let isShuffled = descriptor.atIndex(7)?.booleanValue ?? false
         let repeatModeValue = descriptor.atIndex(8)?.int32Value ?? 0
-        updatedState.repeatMode = RepeatMode(rawValue: Int(repeatModeValue)) ?? .off
         let volumePercentage = descriptor.atIndex(9)?.int32Value ?? 50
-        updatedState.volume = Double(volumePercentage) / 100.0
-        updatedState.artwork = descriptor.atIndex(10)?.data as Data?
+        let artwork = descriptor.atIndex(10)?.data as Data?
         let lovedState = descriptor.atIndex(11)?.booleanValue ?? false
-        updatedState.isFavorite = lovedState
-        updatedState.lastUpdated = Date()
-        self.playbackState = updatedState
+
+        // playbackState is only ever mutated on the main actor.
+        await MainActor.run {
+            var updatedState = self.playbackState
+            updatedState.isPlaying = isPlaying
+            updatedState.title = title
+            updatedState.artist = artist
+            updatedState.album = album
+            updatedState.currentTime = currentTime
+            updatedState.duration = duration
+            updatedState.isShuffled = isShuffled
+            updatedState.repeatMode = RepeatMode(rawValue: Int(repeatModeValue)) ?? .off
+            updatedState.volume = Double(volumePercentage) / 100.0
+            updatedState.artwork = artwork
+            updatedState.isFavorite = lovedState
+            updatedState.lastUpdated = Date()
+            self.playbackState = updatedState
+        }
     }
     
     // MARK: - Private Methods

@@ -34,7 +34,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     }
 
     func setFavorite(_ favorite: Bool) async {
-        let bundleID = playbackState.bundleIdentifier
+        let bundleID = await MainActor.run { playbackState.bundleIdentifier }
         
         if bundleID == "com.apple.Music" {
             let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music")
@@ -157,15 +157,19 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     
     func toggleShuffle() async {
         // MRMediaRemoteSendCommandFunction(6, nil)
-        MRMediaRemoteSetShuffleModeFunction(playbackState.isShuffled ? 1 : 3)
-        playbackState.isShuffled.toggle()
+        await MainActor.run {
+            MRMediaRemoteSetShuffleModeFunction(playbackState.isShuffled ? 1 : 3)
+            playbackState.isShuffled.toggle()
+        }
     }
     
     func toggleRepeat() async {
         // MRMediaRemoteSendCommandFunction(7, nil)
-        let newRepeatMode = (playbackState.repeatMode == .off) ? 3 : (playbackState.repeatMode.rawValue - 1)
-        playbackState.repeatMode = RepeatMode(rawValue: newRepeatMode) ?? .off
-        MRMediaRemoteSetRepeatModeFunction(newRepeatMode)
+        await MainActor.run {
+            let newRepeatMode = (playbackState.repeatMode == .off) ? 3 : (playbackState.repeatMode.rawValue - 1)
+            playbackState.repeatMode = RepeatMode(rawValue: newRepeatMode) ?? .off
+            MRMediaRemoteSetRepeatModeFunction(newRepeatMode)
+        }
     }
     
     func setVolume(_ level: Double) async {
@@ -174,7 +178,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         let clampedLevel = max(0.0, min(1.0, level))
         let volumePercentage = Int(clampedLevel * 100)
         
-        let bundleID = playbackState.bundleIdentifier
+        let bundleID = await MainActor.run { playbackState.bundleIdentifier }
         if !bundleID.isEmpty {
             if bundleID == "com.apple.Music" {
                 let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music")
@@ -191,7 +195,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
             }
         }
         
-        playbackState.volume = clampedLevel
+        await MainActor.run { playbackState.volume = clampedLevel }
     }
     
     // MARK: - Setup Methods
@@ -239,6 +243,18 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
 
     // MARK: - Update Methods
     private func handleAdapterUpdate(_ update: NowPlayingUpdate) async {
+        // Decode artwork and the timestamp here so the main actor only applies the result.
+        let payload = update.payload
+        let artwork = payload.artworkData.flatMap {
+            Data(base64Encoded: $0.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        let timestamp = payload.timestamp.flatMap { ISO8601DateFormatter().date(from: $0) }
+
+        await applyAdapterUpdate(update, artwork: artwork, timestamp: timestamp)
+    }
+
+    @MainActor
+    private func applyAdapterUpdate(_ update: NowPlayingUpdate, artwork: Data?, timestamp: Date?) {
         let payload = update.payload
         let diff = update.diff ?? false
 
@@ -278,17 +294,14 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
             newPlaybackState.repeatMode = self.playbackState.repeatMode
         }
 
-        if let artworkDataString = payload.artworkData {
-            newPlaybackState.artwork = Data(
-                base64Encoded: artworkDataString.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
+        if payload.artworkData != nil {
+            newPlaybackState.artwork = artwork
         } else if !diff {
             newPlaybackState.artwork = nil
         }
 
-        if let dateString = payload.timestamp,
-           let date = ISO8601DateFormatter().date(from: dateString) {
-            newPlaybackState.lastUpdated = date
+        if let timestamp {
+            newPlaybackState.lastUpdated = timestamp
         } else if !diff {
             newPlaybackState.lastUpdated = Date()
         } else {
@@ -304,6 +317,13 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         )
         
         newPlaybackState.volume = payload.volume ?? (diff ? self.playbackState.volume : 0.5)
+
+        // The favorite flag is not part of the adapter payload; keep it until the track changes.
+        let trackChanged = newPlaybackState.title != self.playbackState.title
+            || newPlaybackState.artist != self.playbackState.artist
+            || newPlaybackState.album != self.playbackState.album
+            || newPlaybackState.bundleIdentifier != self.playbackState.bundleIdentifier
+        newPlaybackState.isFavorite = trackChanged ? false : self.playbackState.isFavorite
         
         self.playbackState = newPlaybackState
         
@@ -312,7 +332,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     }
     
      private func fetchFavoriteStateIfSupported() async {
-         let bundleID = playbackState.bundleIdentifier
+         let bundleID = await MainActor.run { playbackState.bundleIdentifier }
         
          if bundleID == "com.apple.Music" {
              let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music")
@@ -328,9 +348,8 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
              end tell
              """
              if let result = try? await AppleScriptHelper.execute(script) {
-                 var updated = self.playbackState
-                 updated.isFavorite = result.booleanValue
-                 self.playbackState = updated
+                 let isFavorite = result.booleanValue
+                 await MainActor.run { playbackState.isFavorite = isFavorite }
              }
          }
      }
@@ -362,7 +381,7 @@ struct NowPlayingPayload: Codable {
 actor JSONLinesPipeHandler {
     private let pipe: Pipe
     private let fileHandle: FileHandle
-    private var buffer = ""
+    private var buffer = Data()
     private var pendingRead: CheckedContinuation<Data, Error>?
     
     init() {
@@ -389,25 +408,21 @@ actor JSONLinesPipeHandler {
             let data = try await readData()
             guard !data.isEmpty else { break }
             
-            if let chunk = String(data: data, encoding: .utf8) {
-                buffer.append(chunk)
+            // Buffer raw bytes: a read can end in the middle of a multi-byte UTF-8 character.
+            buffer.append(data)
+            
+            while let newlineIndex = buffer.firstIndex(of: 0x0A) {
+                let line = Data(buffer[buffer.startIndex..<newlineIndex])
+                buffer.removeSubrange(buffer.startIndex...newlineIndex)
                 
-                while let range = buffer.range(of: "\n") {
-                    let line = String(buffer[..<range.lowerBound])
-                    buffer = String(buffer[range.upperBound...])
-                    
-                    if !line.isEmpty {
-                        await processJSONLine(line, as: type, onLine: onLine)
-                    }
+                if !line.isEmpty {
+                    await processJSONLine(line, as: type, onLine: onLine)
                 }
             }
         }
     }
     
-    private func processJSONLine<T: Decodable>(_ line: String, as type: T.Type, onLine: @escaping (T) async -> Void) async {
-        guard let data = line.data(using: .utf8) else {
-            return
-        }
+    private func processJSONLine<T: Decodable>(_ data: Data, as type: T.Type, onLine: @escaping (T) async -> Void) async {
         do {
             let decodedObject = try JSONDecoder().decode(T.self, from: data)
             await onLine(decodedObject)

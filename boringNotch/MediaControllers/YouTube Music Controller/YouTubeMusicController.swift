@@ -31,9 +31,10 @@ final class YouTubeMusicController: MediaControllerProtocol {
     func setFavorite(_ favorite: Bool) async {
         do {
             let token = try await authManager.authenticate()
-            if favorite && !playbackState.isFavorite {
+            let isFavorite = await MainActor.run { playbackState.isFavorite }
+            if favorite && !isFavorite {
                 _ = try await httpClient.toggleLike(token: token)
-            } else if !favorite && playbackState.isFavorite {
+            } else if !favorite && isFavorite {
                 _ = try await httpClient.toggleLike(token: token)
             }
             try? await Task.sleep(for: .milliseconds(150))
@@ -48,6 +49,8 @@ final class YouTubeMusicController: MediaControllerProtocol {
     private let httpClient: YouTubeMusicHTTPClient
     private let authManager: YouTubeMusicAuthManager
     private var webSocketClient: YouTubeMusicWebSocketClient?
+    /// Identifies the current WebSocket client so callbacks from replaced clients can be ignored.
+    private var webSocketToken: UUID?
     
     private var updateTask: Task<Void, Never>?
     private var appStateObserver: Task<Void, Never>?
@@ -110,7 +113,7 @@ final class YouTubeMusicController: MediaControllerProtocol {
     
     func updatePlaybackInfo() async {
         guard isActive() else {
-            resetPlaybackState()
+            await resetPlaybackState()
             return
         }
         
@@ -121,21 +124,9 @@ final class YouTubeMusicController: MediaControllerProtocol {
             // Fetch like state if supported
             do {
                 let likeResp = try await httpClient.getLikeState(token: token)
-                var newState = playbackState
-                    if let state = likeResp.state {
-                        switch state.uppercased() {
-                        case "LIKE":
-                            newState.isFavorite = true
-                        case "DISLIKE":
-                            // We don't have a separate dislike UI yet, treat as not favorited
-                            newState.isFavorite = false
-                        default:
-                            newState.isFavorite = false
-                        }
-                    } else {
-                        newState.isFavorite = false
-                    }
-                playbackState = newState
+                // A missing state or a DISLIKE (no separate dislike UI yet) both count as not favorited.
+                let isFavorite = likeResp.state?.uppercased() == "LIKE"
+                await MainActor.run { playbackState.isFavorite = isFavorite }
             } catch {
                 // Don't treat it as an error if the like endpoint doesn't exist — just skip
             }
@@ -192,12 +183,9 @@ final class YouTubeMusicController: MediaControllerProtocol {
             stopPeriodicUpdates()
         }
         
-        Task {
-            await webSocketClient?.disconnect()
-            webSocketClient = nil
-        }
+        await tearDownWebSocket()
         
-        resetPlaybackState()
+        await resetPlaybackState()
     }
     
     private func initializeIfAppActive() async {
@@ -214,33 +202,56 @@ final class YouTubeMusicController: MediaControllerProtocol {
         }
     }
     
+    @MainActor
     private func setupWebSocketIfPossible(token: String) async {
         guard let wsURL = WebSocketURLBuilder.buildURL(from: configuration.baseURL) else {
             print("[YouTubeMusicController] Failed to build WebSocket URL")
             return
         }
         
+        let clientToken = UUID()
         let client = YouTubeMusicWebSocketClient(
             onMessage: { [weak self] data in
-                await self?.handleWebSocketMessage(data)
+                await self?.handleWebSocketMessage(data, clientToken: clientToken)
             },
             onDisconnect: { [weak self] in
-                await self?.handleWebSocketDisconnect()
+                await self?.handleWebSocketDisconnect(clientToken: clientToken)
             }
         )
         
+        // Replace the previous client first. Its onDisconnect is ignored because the token no longer matches.
+        let previousClient = webSocketClient
+        webSocketClient = client
+        webSocketToken = clientToken
+        await previousClient?.disconnect()
+        
         do {
             try await client.connect(to: wsURL, with: token)
-            webSocketClient = client
-            await stopPeriodicUpdates() // WebSocket will provide real-time updates
-            reconnectDelay = configuration.reconnectDelay.lowerBound
+            stopPeriodicUpdates() // WebSocket will provide real-time updates
         } catch {
+            if webSocketToken == clientToken {
+                webSocketClient = nil
+                webSocketToken = nil
+            }
             print("[YouTubeMusicController] WebSocket connection failed: \(error)")
             await scheduleReconnect()
         }
     }
     
-    private func handleWebSocketMessage(_ data: Data) async {
+    @MainActor
+    private func tearDownWebSocket() async {
+        let client = webSocketClient
+        webSocketClient = nil
+        webSocketToken = nil
+        await client?.disconnect()
+    }
+    
+    @MainActor
+    private func handleWebSocketMessage(_ data: Data, clientToken: UUID) async {
+        guard clientToken == webSocketToken else { return }
+        // The connection is only considered healthy once the server actually sends something.
+        reconnectDelay = configuration.reconnectDelay.lowerBound
+        
         guard let message = WebSocketMessage(from: data) else {
             if let response = try? JSONDecoder().decode(PlaybackResponse.self, from: data) {
                 await updatePlaybackState(with: response)
@@ -306,15 +317,21 @@ final class YouTubeMusicController: MediaControllerProtocol {
         }
     }
     
-    private func handleWebSocketDisconnect() async {
+    @MainActor
+    private func handleWebSocketDisconnect(clientToken: UUID) async {
+        // A replaced or torn-down client must not wipe the current one.
+        guard clientToken == webSocketToken else { return }
         webSocketClient = nil
+        webSocketToken = nil
         await startPeriodicUpdates() // Fallback to polling
         await scheduleReconnect()
     }
     
+    @MainActor
     private func scheduleReconnect() async {
-        try? await Task.sleep(for: .seconds(reconnectDelay))
-        reconnectDelay = min(reconnectDelay * 2, configuration.reconnectDelay.upperBound)
+        let delay = reconnectDelay
+        try? await Task.sleep(for: .seconds(delay))
+        reconnectDelay = min(delay * 2, configuration.reconnectDelay.upperBound)
         
         if isActive() {
             await initializeIfAppActive()
@@ -370,27 +387,31 @@ final class YouTubeMusicController: MediaControllerProtocol {
             )
             // Lightweight endpoint-specific parsing
             if endpoint == "/shuffle" {
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let shuffleState = json["state"] as? Bool {
-                    playbackState.isShuffled = shuffleState
-                } else {
-                    playbackState.isShuffled = !playbackState.isShuffled
+                let reportedState = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["state"] as? Bool
+                await MainActor.run {
+                    playbackState.isShuffled = reportedState ?? !playbackState.isShuffled
                 }
             } else if endpoint == "/repeat-mode" {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let mode = json["mode"] as? String { updateRepeatMode(mode) }
+                    if let mode = json["mode"] as? String { await updateRepeatMode(mode) }
                 }
             }  else if endpoint == "/switch-repeat" {
-                // Find next repeat mode
-                let nextMode: RepeatMode
-                switch playbackState.repeatMode {
-                case .off: nextMode = .all
-                case .all: nextMode = .one
-                case .one: nextMode = .off
+                await MainActor.run {
+                    // Find next repeat mode
+                    let nextMode: RepeatMode
+                    switch playbackState.repeatMode {
+                    case .off: nextMode = .all
+                    case .all: nextMode = .one
+                    case .one: nextMode = .off
+                    }
+                    playbackState.repeatMode = nextMode
                 }
-                playbackState.repeatMode = nextMode
-            } else if refresh && webSocketClient == nil {
-                try? await Task.sleep(for: .milliseconds(100))
-                await updatePlaybackInfo()
+            } else if refresh {
+                let hasWebSocket = await MainActor.run { webSocketClient != nil }
+                if !hasWebSocket {
+                    try? await Task.sleep(for: .milliseconds(100))
+                    await updatePlaybackInfo()
+                }
             }
         } catch YouTubeMusicError.authenticationRequired {
             await authManager.invalidateToken()
@@ -399,6 +420,7 @@ final class YouTubeMusicController: MediaControllerProtocol {
         }
     }
     
+    @MainActor
     private func updatePlaybackState(with response: PlaybackResponse) async {
         var newState = playbackState
         
@@ -464,6 +486,7 @@ final class YouTubeMusicController: MediaControllerProtocol {
         }
     }
     
+    @MainActor
     private func resetPlaybackState() {
         playbackState = PlaybackState(
             bundleIdentifier: configuration.bundleIdentifier,
@@ -478,7 +501,8 @@ final class YouTubeMusicController: MediaControllerProtocol {
         NSWorkspace.shared.open(url)
     }
 
-     private func updateRepeatMode(_ mode: String) {
+    @MainActor
+    private func updateRepeatMode(_ mode: String) {
         var target: RepeatMode? = nil
         switch mode {
             case "NONE": target = .off

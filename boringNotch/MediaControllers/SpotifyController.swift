@@ -93,7 +93,7 @@ class SpotifyController: MediaControllerProtocol {
     }
     
     func isActive() -> Bool {
-        NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == playbackState.bundleIdentifier }
+        NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "com.spotify.client" }
     }
     
     func updatePlaybackInfo() async {
@@ -111,7 +111,7 @@ class SpotifyController: MediaControllerProtocol {
         let volumePercentage = descriptor.atIndex(9)?.int32Value ?? 50
         let artworkURL = descriptor.atIndex(10)?.stringValue ?? ""
         
-        var state = PlaybackState(
+        let state = PlaybackState(
             bundleIdentifier: "com.spotify.client",
             isPlaying: isPlaying,
             title: currentTrack,
@@ -127,11 +127,19 @@ class SpotifyController: MediaControllerProtocol {
             volume: Double(volumePercentage) / 100.0
         )
 
+        await applyPlaybackInfo(state, artworkURL: artworkURL)
+    }
+
+    /// playbackState, lastArtworkURL and artworkFetchTask are only touched on the main actor.
+    @MainActor
+    private func applyPlaybackInfo(_ newState: PlaybackState, artworkURL: String) {
+        var state = newState
+
         if artworkURL == lastArtworkURL, let existingArtwork = self.playbackState.artwork {
             state.artwork = existingArtwork
         }
 
-    playbackState = state
+        playbackState = state
 
         if !artworkURL.isEmpty, let url = URL(string: artworkURL) {
             guard artworkURL != lastArtworkURL || state.artwork == nil else { return }

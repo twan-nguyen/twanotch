@@ -8,10 +8,14 @@
 import Foundation
 
 class AppleScriptHelper {
+    /// Scripts run one at a time on this queue, so a hung target app can only stall the queue
+    /// and never occupies a thread of the Swift concurrency cooperative pool.
+    private static let scriptQueue = DispatchQueue(label: "boringNotch.AppleScriptHelper", qos: .userInitiated)
+
     @discardableResult
     class func execute(_ scriptText: String) async throws -> NSAppleEventDescriptor? {
         try await withCheckedThrowingContinuation { continuation in
-            Task.detached(priority: .userInitiated) {
+            scriptQueue.async {
                 let script = NSAppleScript(source: scriptText)
                 var error: NSDictionary?
                 if let descriptor = script?.executeAndReturnError(&error) {
