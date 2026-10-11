@@ -239,6 +239,12 @@ struct BoringBatteryView: View {
         .onDisappear {
             hideTask?.cancel()
             hideTask = nil
+            // The header can be replaced (e.g. by a HUD) while the popover is open; without this
+            // the flag stays true and the notch never auto-closes.
+            if showPopupMenu {
+                showPopupMenu = false
+                vm.isBatteryPopoverActive = false
+            }
         }
     }
 

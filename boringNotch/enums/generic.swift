@@ -69,6 +69,18 @@ enum AppLanguage: String, CaseIterable, Defaults.Serializable {
     case english = "en"
     case vietnamese = "vi"
 
+    /// Language currently overridden for this app, including the per-app language chosen in
+    /// System Settings > Language & Region. Unsupported or absent overrides map to `.system`.
+    static var currentOverride: AppLanguage {
+        guard let bundleID = Bundle.main.bundleIdentifier,
+              let languages = UserDefaults.standard.persistentDomain(forName: bundleID)?["AppleLanguages"] as? [String],
+              let first = languages.first
+        else { return .system }
+        if first.hasPrefix(AppLanguage.vietnamese.rawValue) { return .vietnamese }
+        if first.hasPrefix(AppLanguage.english.rawValue) { return .english }
+        return .system
+    }
+
     func apply() {
         if self == .system {
             UserDefaults.standard.removeObject(forKey: "AppleLanguages")

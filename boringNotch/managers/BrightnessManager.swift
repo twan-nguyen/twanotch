@@ -14,6 +14,8 @@ final class BrightnessManager: ObservableObject {
 
 	private let visibleDuration: TimeInterval = 1.2
 	private let client = XPCHelperClient.shared
+	private var pendingDelta: Float = 0
+	private var isApplying = false
 
 	private init() { refresh() }
 
@@ -28,16 +30,25 @@ final class BrightnessManager: ObservableObject {
 	}
 
 	@MainActor func setRelative(delta: Float) {
+		// Key repeats accumulate here and are applied one batch at a time, so steps are never lost.
+		pendingDelta += delta
+		guard !isApplying else { return }
+		isApplying = true
 		Task { @MainActor in
-			let starting = await client.currentScreenBrightness() ?? rawBrightness
-			let target = max(0, min(1, starting + delta))
-			let ok = await client.setScreenBrightness(target)
-			if ok {
-				publish(brightness: target, touchDate: true)
-			} else {
-				refresh()
+			defer { isApplying = false }
+			while pendingDelta != 0 {
+				let step = pendingDelta
+				pendingDelta = 0
+				let starting = await client.currentScreenBrightness() ?? rawBrightness
+				let target = max(0, min(1, starting + step))
+				let ok = await client.setScreenBrightness(target)
+				if ok {
+					publish(brightness: target, touchDate: true)
+				} else {
+					refresh()
+				}
+				BoringViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(target))
 			}
-			BoringViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(target))
 		}
 	}
 
@@ -75,6 +86,8 @@ final class KeyboardBacklightManager: ObservableObject {
 
 	private let visibleDuration: TimeInterval = 1.2
 	private let client = XPCHelperClient.shared
+	private var pendingDelta: Float = 0
+	private var isApplying = false
 
 	private init() { refresh() }
 
@@ -89,20 +102,29 @@ final class KeyboardBacklightManager: ObservableObject {
 	}
 
 	@MainActor func setRelative(delta: Float) {
+		// Key repeats accumulate here and are applied one batch at a time, so steps are never lost.
+		pendingDelta += delta
+		guard !isApplying else { return }
+		isApplying = true
 		Task { @MainActor in
-			let starting = await client.currentKeyboardBrightness() ?? rawBrightness
-			let target = max(0, min(1, starting + delta))
-			let ok = await client.setKeyboardBrightness(target)
-			if ok {
-				publish(brightness: target, touchDate: true)
-			} else {
-				refresh()
+			defer { isApplying = false }
+			while pendingDelta != 0 {
+				let step = pendingDelta
+				pendingDelta = 0
+				let starting = await client.currentKeyboardBrightness() ?? rawBrightness
+				let target = max(0, min(1, starting + step))
+				let ok = await client.setKeyboardBrightness(target)
+				if ok {
+					publish(brightness: target, touchDate: true)
+				} else {
+					refresh()
+				}
+				BoringViewCoordinator.shared.toggleSneakPeek(
+					status: true,
+					type: .backlight,
+					value: CGFloat(target)
+				)
 			}
-			BoringViewCoordinator.shared.toggleSneakPeek(
-				status: true,
-				type: .backlight,
-				value: CGFloat(target)
-			)
 		}
 	}
 

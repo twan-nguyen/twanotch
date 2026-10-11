@@ -136,7 +136,13 @@ struct GeneralSettings: View {
                     Text(verbatim: "English").tag(AppLanguage.english)
                     Text(verbatim: "Tiếng Việt").tag(AppLanguage.vietnamese)
                 }
+                .onAppear {
+                    let actual = AppLanguage.currentOverride
+                    if appLanguage != actual { appLanguage = actual }
+                }
                 .onChange(of: appLanguage) { _, newValue in
+                    // Skip when the selection already matches the OS-level override (picker sync).
+                    guard newValue != AppLanguage.currentOverride else { return }
                     newValue.apply()
                     showLanguageRestartAlert = true
                 }
@@ -1178,10 +1184,11 @@ struct Appearance: View {
     @State private var url: String = ""
     @State private var speed: CGFloat = 1.0
 
-    /// The Lottie URL typed in the "Add new visualizer" sheet, or nil unless it is a full http(s) URL.
+    /// The Lottie URL typed in the "Add new visualizer" sheet, or nil unless it is a full https URL
+    /// (App Transport Security blocks plain http).
     private var newVisualizerURL: URL? {
         guard let parsed = URL(string: url.trimmingCharacters(in: .whitespacesAndNewlines)),
-              let scheme = parsed.scheme?.lowercased(), scheme == "https" || scheme == "http",
+              parsed.scheme?.lowercased() == "https",
               parsed.host != nil
         else { return nil }
         return parsed
@@ -1431,7 +1438,6 @@ struct Appearance: View {
 struct Advanced: View {
     @Default(.useCustomAccentColor) var useCustomAccentColor
     @Default(.customAccentColorData) var customAccentColorData
-    @Default(.extendHoverArea) var extendHoverArea
     @Default(.showOnLockScreen) var showOnLockScreen
     @Default(.hideFromScreenRecording) var hideFromScreenRecording
     
@@ -1632,9 +1638,6 @@ struct Advanced: View {
             }
             
             Section {
-                Defaults.Toggle(key: .extendHoverArea) {
-                    Text("Extend hover area")
-                }
                 Defaults.Toggle(key: .hideTitleBar) {
                     Text("Hide title bar")
                 }
