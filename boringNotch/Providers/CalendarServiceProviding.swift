@@ -7,6 +7,7 @@
 //  Modified by Alexander on 08/06/25
 //
 
+import Defaults
 import Foundation
 @preconcurrency import EventKit
 
@@ -82,26 +83,33 @@ class CalendarService: CalendarServiceProviding {
     }
     
     private func fetchReminders(from start: Date, to end: Date, calendars: [EKCalendar]) async -> [EventModel] {
+        // Incomplete reminders are narrowed by due date in the store itself.
+        var predicates = [
+            store.predicateForIncompleteReminders(withDueDateStarting: start, ending: end, calendars: calendars)
+        ]
+        // The completion-date predicate cannot be bounded by due date without dropping reminders
+        // completed on another day, so it is left open and only used when completed reminders are shown.
+        if !Defaults[.hideCompletedReminders] {
+            predicates.append(
+                store.predicateForCompletedReminders(withCompletionDateStarting: nil, ending: nil, calendars: calendars)
+            )
+        }
+
+        var events: [EventModel] = []
+        for predicate in predicates {
+            events.append(contentsOf: await fetchReminders(matching: predicate, from: start, to: end))
+        }
+        return events
+    }
+
+    private func fetchReminders(matching predicate: NSPredicate, from start: Date, to end: Date) async -> [EventModel] {
         return await withCheckedContinuation { continuation in
-            // Create predicate for reminders with due dates in the specified range
-            let predicate = store.predicateForReminders(in: calendars)
-            
             store.fetchReminders(matching: predicate) { reminders in
-                
-                let filteredReminders = (reminders ?? []).filter { reminder in
-                    // Check if reminder has a due date within our range
-                    guard let dueDate = reminder.dueDateComponents?.date else {
-                        return false
-                    }
-                    
-                    return dueDate >= start && dueDate <= end
-                }
-                
-                // Convert to EventModel
-                let eventModels = filteredReminders.compactMap { reminder in
-                    EventModel(from: reminder)
-                }
-                
+                // Convert to EventModel (resolves the due date via Calendar.current) and keep
+                // only reminders due in [start, end); `end` is the next day's midnight.
+                let eventModels = (reminders ?? []).compactMap { EventModel(from: $0) }
+                    .filter { $0.start >= start && $0.start < end }
+
                 continuation.resume(returning: eventModels)
             }
         }
