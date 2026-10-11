@@ -144,6 +144,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func cancelCloseNotchTask(for viewModel: BoringViewModel) {
+        let id = ObjectIdentifier(viewModel)
+        closeNotchTasks[id]?.cancel()
+        closeNotchTasks[id] = nil
+    }
+
     private func cleanupWindows(shouldInvert: Bool = false) {
         let shouldCleanupMulti = shouldInvert ? !Defaults[.showOnAllDisplays] : Defaults[.showOnAllDisplays]
         
@@ -154,6 +160,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 NotchSpaceManager.shared.notchSpace.windows.remove(window)
             }
             windows.removeAll()
+            viewModels.values.forEach { cancelCloseNotchTask(for: $0) }
             viewModels.removeAll()
         } else if let window = window {
             removeScreenDidChangeObserver(for: window)
@@ -398,10 +405,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         viewModel.open()
                     }
 
-                    let task = Task { [weak viewModel] in
+                    let task = Task { [weak self, weak viewModel] in
                         do {
                             try await Task.sleep(for: .seconds(3))
                             await MainActor.run {
+                                // A newer toggle cancels this task before replacing the entry, so only a
+                                // task that was not superseded removes its own entry.
+                                if !Task.isCancelled {
+                                    self?.closeNotchTasks[viewModelID] = nil
+                                }
                                 guard let viewModel, !viewModel.isMouseHovering() else { return }
                                 viewModel.close()
                             }
@@ -492,7 +504,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     window.close()
                     NotchSpaceManager.shared.notchSpace.windows.remove(window)
                     windows.removeValue(forKey: uuid)
-                    viewModels.removeValue(forKey: uuid)
+                    if let removedViewModel = viewModels.removeValue(forKey: uuid) {
+                        cancelCloseNotchTask(for: removedViewModel)
+                    }
                 }
             }
 

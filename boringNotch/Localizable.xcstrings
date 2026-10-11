@@ -25100,6 +25100,236 @@
           }
         }
       }
+    },
+    "Enable Camera Access" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật quyền truy cập Camera"
+          }
+        }
+      }
+    },
+    "TwaNotch includes a mirror feature that lets you quickly check your appearance using your camera, right from the notch. Camera access is required only to show this live preview. You can turn the mirror feature on or off at any time in the app." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TwaNotch có tính năng gương giúp bạn nhanh chóng xem lại diện mạo bằng camera ngay từ notch. Quyền truy cập camera chỉ cần để hiển thị bản xem trước trực tiếp này. Bạn có thể bật hoặc tắt tính năng gương bất cứ lúc nào trong ứng dụng."
+          }
+        }
+      }
+    },
+    "Your camera is never used without your consent, and nothing is recorded or stored." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera sẽ không bao giờ được dùng nếu bạn chưa đồng ý, và không có gì được ghi hình hay lưu trữ."
+          }
+        }
+      }
+    },
+    "Enable Calendar Access" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật quyền truy cập Lịch"
+          }
+        }
+      }
+    },
+    "TwaNotch can show all your upcoming events in one place. Access to your calendar is needed to display your schedule." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TwaNotch có thể hiển thị mọi sự kiện sắp tới của bạn ở một nơi. Cần quyền truy cập Lịch để hiển thị lịch trình của bạn."
+          }
+        }
+      }
+    },
+    "Your calendar data is only used to show your events and is never shared." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dữ liệu lịch của bạn chỉ được dùng để hiển thị các sự kiện và không bao giờ được chia sẻ."
+          }
+        }
+      }
+    },
+    "Enable Reminders Access" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật quyền truy cập Lời nhắc"
+          }
+        }
+      }
+    },
+    "TwaNotch can show your scheduled reminders alongside your calendar events. Access to Reminders is needed to display your reminders." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TwaNotch có thể hiển thị các lời nhắc đã lên lịch cùng với sự kiện lịch của bạn. Cần quyền truy cập Lời nhắc để hiển thị chúng."
+          }
+        }
+      }
+    },
+    "Your reminders data is only used to show your reminders and is never shared." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dữ liệu lời nhắc của bạn chỉ được dùng để hiển thị các lời nhắc và không bao giờ được chia sẻ."
+          }
+        }
+      }
+    },
+    "Enable Accessibility Access" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật quyền truy cập Trợ năng"
+          }
+        }
+      }
+    },
+    "Accessibility access is required to replace system notifications with the TwaNotch HUD. This allows the app to intercept media and brightness events to display custom HUD overlays." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cần quyền Trợ năng để thay thế thông báo hệ thống bằng HUD của TwaNotch. Quyền này cho phép ứng dụng bắt các sự kiện phím media và độ sáng để hiển thị lớp phủ HUD tùy chỉnh."
+          }
+        }
+      }
+    },
+    "Accessibility access is used only to improve media and brightness notifications. No data is collected or shared." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quyền Trợ năng chỉ được dùng để cải thiện thông báo về media và độ sáng. Không có dữ liệu nào được thu thập hoặc chia sẻ."
+          }
+        }
+      }
+    },
+    "Camera Access Required" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cần quyền truy cập Camera"
+          }
+        }
+      }
+    },
+    "Please allow camera access in System Settings." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vui lòng cho phép truy cập camera trong Cài đặt Hệ thống."
+          }
+        }
+      }
+    },
+    "Open Settings" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở Cài đặt"
+          }
+        }
+      }
+    },
+    "Player tinting" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tô màu theo trình phát"
+          }
+        }
+      }
+    },
+    "Waiting for Accessibility permission" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang chờ quyền Trợ năng"
+          }
+        }
+      }
+    },
+    "Unplugged" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã rút sạc"
+          }
+        }
+      }
+    },
+    "Low Power: On" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chế độ nguồn điện thấp: Bật"
+          }
+        }
+      }
+    },
+    "Low Power: Off" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chế độ nguồn điện thấp: Tắt"
+          }
+        }
+      }
+    },
+    "Charging battery" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang sạc pin"
+          }
+        }
+      }
+    },
+    "Not charging" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không sạc"
+          }
+        }
+      }
+    },
+    "Full charge" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã sạc đầy"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

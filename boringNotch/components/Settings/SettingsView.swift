@@ -507,7 +507,7 @@ struct HUD: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.large)
-                    .disabled(!accessibilityAuthorized)
+                    .disabled(!accessibilityAuthorized && !hudReplacement)
                 }
                 
                 if !accessibilityAuthorized {
@@ -515,6 +515,12 @@ struct HUD: View {
                         Text("Accessibility access is required to replace the system HUD.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+
+                        if hudReplacement {
+                            Text("Waiting for Accessibility permission")
+                                .font(.subheadline)
+                                .foregroundStyle(.orange)
+                        }
 
                         HStack(spacing: 12) {
                             Button("Request Accessibility") {
@@ -597,10 +603,10 @@ struct HUD: View {
             accessibilityAuthorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
         }
         .onAppear {
-            XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
+            XPCHelperClient.shared.startMonitoringAccessibilityAuthorization(owner: "hudSettings")
         }
         .onDisappear {
-            XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization()
+            XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization(owner: "hudSettings")
         }
         .onReceive(NotificationCenter.default.publisher(for: .accessibilityAuthorizationChanged)) { notification in
             if let granted = notification.userInfo?["granted"] as? Bool {
@@ -1210,8 +1216,9 @@ struct Appearance: View {
                 Defaults.Toggle(key: .coloredSpectrogram) {
                     Text("Colored spectrogram")
                 }
-                Defaults
-                    .Toggle("Player tinting", key: .playerColorTinting)
+                Defaults.Toggle(key: .playerColorTinting) {
+                    Text("Player tinting")
+                }
                 Defaults.Toggle(key: .lightingEffect) {
                     Text("Enable blur effect behind album art")
                 }

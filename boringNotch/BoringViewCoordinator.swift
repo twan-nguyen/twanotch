@@ -98,6 +98,8 @@ class BoringViewCoordinator: ObservableObject {
     @Published var selectedScreenUUID: String = NSScreen.main?.displayUUID ?? ""
 
     @Published var optionKeyPressed: Bool = true
+    /// View models whose notch is currently open; shared state is reset only when this is empty.
+    var openNotchIDs: Set<ObjectIdentifier> = []
     private var accessibilityObserver: Any?
     private var hudReplacementCancellable: AnyCancellable?
 
@@ -130,7 +132,7 @@ class BoringViewCoordinator: ObservableObject {
         ) { notification in
             Task { @MainActor in
                 if notification.userInfo?["granted"] as? Bool == true {
-                    XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization()
+                    XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization(owner: "coordinator")
                 }
                 if Defaults[.hudReplacement] {
                     await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
@@ -159,10 +161,11 @@ class BoringViewCoordinator: ObservableObject {
                             if granted {
                                 await MediaKeyInterceptor.shared.start()
                             } else {
-                                XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
+                                XPCHelperClient.shared.startMonitoringAccessibilityAuthorization(owner: "coordinator")
                             }
                         }
                     } else {
+                        XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization(owner: "coordinator")
                         MediaKeyInterceptor.shared.stop()
                     }
                 }
@@ -176,7 +179,7 @@ class BoringViewCoordinator: ObservableObject {
                 await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
                 // Watch for the permission (e.g. re-granted after a rebuild) so the HUD comes back on its own.
                 if !(await XPCHelperClient.shared.isAccessibilityAuthorized()) {
-                    XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
+                    XPCHelperClient.shared.startMonitoringAccessibilityAuthorization(owner: "coordinator")
                 }
             }
         }

@@ -11,6 +11,8 @@ final class XPCHelperClient: NSObject {
     private var connection: NSXPCConnection?
     private var lastKnownAuthorization: Bool?
     private var monitoringTask: Task<Void, Never>?
+    private var monitoringOwners: Set<String> = []
+    private let monitoringLock = NSLock()
     
     deinit {
         connection?.invalidate()
@@ -68,9 +70,13 @@ final class XPCHelperClient: NSObject {
     }
 
     // MARK: - Monitoring
-    nonisolated func startMonitoringAccessibilityAuthorization(every interval: TimeInterval = 3.0) {
-        // Ensure only one monitor exists
-        stopMonitoringAccessibilityAuthorization()
+    /// Starts polling the accessibility state on behalf of `owner`. The shared poll task keeps running
+    /// until every owner has called `stopMonitoringAccessibilityAuthorization(owner:)`.
+    nonisolated func startMonitoringAccessibilityAuthorization(owner: String, every interval: TimeInterval = 3.0) {
+        monitoringLock.lock()
+        defer { monitoringLock.unlock() }
+        monitoringOwners.insert(owner)
+        guard monitoringTask == nil else { return }
         monitoringTask = Task.detached { [weak self] in
             guard let self = self else { return }
             while !Task.isCancelled {
@@ -83,13 +89,28 @@ final class XPCHelperClient: NSObject {
         }
     }
 
+    nonisolated func stopMonitoringAccessibilityAuthorization(owner: String) {
+        monitoringLock.lock()
+        defer { monitoringLock.unlock() }
+        monitoringOwners.remove(owner)
+        guard monitoringOwners.isEmpty else { return }
+        monitoringTask?.cancel()
+        monitoringTask = nil
+    }
+
+    /// Stops monitoring for every owner (teardown).
     nonisolated func stopMonitoringAccessibilityAuthorization() {
+        monitoringLock.lock()
+        defer { monitoringLock.unlock() }
+        monitoringOwners.removeAll()
         monitoringTask?.cancel()
         monitoringTask = nil
     }
 
     // Expose whether the client is actively monitoring (useful for tests/debug)
     var isMonitoring: Bool {
+        monitoringLock.lock()
+        defer { monitoringLock.unlock() }
         return monitoringTask != nil
     }
     
