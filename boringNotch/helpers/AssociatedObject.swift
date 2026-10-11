@@ -11,11 +11,12 @@ import ObjectiveC
 
 /// Lightweight helper for Objective-C associated objects.
 public struct AssociatedObject<Value: AnyObject> {
-    private let key: UnsafeRawPointer
+    /// Strong reference keeps the key's address unique for as long as this value exists.
+    private let keyObject = UniqueKey()
+    private var key: UnsafeRawPointer { UnsafeRawPointer(Unmanaged.passUnretained(keyObject).toOpaque()) }
     private let policy: objc_AssociationPolicy
 
     public init(_ policy: objc_AssociationPolicy = .OBJC_ASSOCIATION_RETAIN_NONATOMIC) {
-        self.key = UnsafeRawPointer(Unmanaged.passUnretained(UniqueKey()).toOpaque())
         self.policy = policy
     }
 

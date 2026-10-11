@@ -27,17 +27,15 @@ final class XPCHelperClient: NSObject {
         
         let conn = NSXPCConnection(serviceName: serviceName)
         
-        conn.interruptionHandler = { [weak self] in
-            Task { @MainActor in
-                self?.connection = nil
-                self?.remoteService = nil
-            }
-        }
+        // An interruption keeps the connection: NSXPCConnection relaunches the service on the next message.
+        conn.interruptionHandler = {}
         
-        conn.invalidationHandler = { [weak self] in
+        // Clear only if this is still the current connection; a late invalidation of an old one must not wipe a newer one.
+        conn.invalidationHandler = { [weak self, weak conn] in
             Task { @MainActor in
-                self?.connection = nil
-                self?.remoteService = nil
+                guard let self, let conn, self.connection === conn else { return }
+                self.connection = nil
+                self.remoteService = nil
             }
         }
         

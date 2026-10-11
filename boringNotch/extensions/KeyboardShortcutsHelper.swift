@@ -52,7 +52,9 @@ extension KeyboardShortcuts.Shortcut {
             return nil
         }
         
-        return KeyEquivalent(Character(String(utf16CodeUnits: nameBuffer, count: nameLength)))
+        let name = String(utf16CodeUnits: nameBuffer, count: nameLength)
+        guard name.count == 1, let character = name.first else { return nil }
+        return KeyEquivalent(character)
     }
     
     func toEventModifiers() -> SwiftUI.EventModifiers {

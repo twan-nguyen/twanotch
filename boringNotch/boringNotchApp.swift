@@ -59,7 +59,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var quickShareService = QuickShareService.shared
     var whatsNewWindow: NSWindow?
     var timer: Timer?
-    var closeNotchTask: Task<Void, Never>?
+    private var closeNotchTasks: [ObjectIdentifier: Task<Void, Never>] = [:] // view model -> pending auto-close
     private var previousScreens: [NSScreen]?
     private var onboardingWindowController: NSWindowController?
     private var screenLockedObserver: Any?
@@ -388,8 +388,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 }
 
-                self.closeNotchTask?.cancel()
-                self.closeNotchTask = nil
+                let viewModelID = ObjectIdentifier(viewModel)
+                self.closeNotchTasks[viewModelID]?.cancel()
+                self.closeNotchTasks[viewModelID] = nil
 
                 switch viewModel.notchState {
                 case .closed:
@@ -401,11 +402,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         do {
                             try await Task.sleep(for: .seconds(3))
                             await MainActor.run {
-                                viewModel?.close()
+                                guard let viewModel, !viewModel.isMouseHovering() else { return }
+                                viewModel.close()
                             }
                         } catch { }
                     }
-                    self.closeNotchTask = task
+                    self.closeNotchTasks[viewModelID] = task
                 case .open:
                     await MainActor.run {
                         viewModel.close()

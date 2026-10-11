@@ -28,6 +28,14 @@ final class MediaChecker: Sendable {
             process.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
             process.arguments = [scriptURL.path, frameworkPath, nowPlayingTestClientPath, "test"]
 
+            // Set the handler before run() so a fast exit is never missed.
+            let exited = AsyncStream<Void> { continuation in
+                process.terminationHandler = { _ in
+                    continuation.yield()
+                    continuation.finish()
+                }
+            }
+
             do {
                 try process.run()
             } catch {
@@ -37,26 +45,21 @@ final class MediaChecker: Sendable {
             // Timeout after 10 seconds
             let didExit: Bool = try await withThrowingTaskGroup(of: Bool.self) { group in
                 group.addTask {
-                    process.waitUntilExit()
+                    for await _ in exited { break }
                     return true
                 }
                 group.addTask {
                     try await Task.sleep(for: .seconds(10))
-                    if process.isRunning {
-                        process.terminate()
-                    }
                     return false // Timed out
                 }
-                for try await exited in group {
-                    if exited {
-                        group.cancelAll()
-                        return true
-                    }
-                }
-                throw MediaCheckerError.timeout
+                defer { group.cancelAll() }
+                return try await group.next() ?? false
             }
 
             if !didExit {
+                if process.isRunning {
+                    process.terminate()
+                }
                 throw MediaCheckerError.timeout
             }
 

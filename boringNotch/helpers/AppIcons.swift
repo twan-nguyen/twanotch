@@ -20,7 +20,7 @@ struct AppIcons {
     func getIcon(bundleID: String) -> NSImage? {
         guard let path = NSWorkspace.shared.urlForApplication(
             withBundleIdentifier: bundleID
-        )?.absoluteString
+        )?.path
         else { return nil }
         
         return getIcon(file: path)
