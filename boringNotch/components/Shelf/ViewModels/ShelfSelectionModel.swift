@@ -77,8 +77,17 @@ final class ShelfSelectionModel: ObservableObject {
 
     @Published private(set) var isDragging: Bool = false
 
+    /// Set when the shelf's own drag was dropped on the share zone, which still reads the dragged
+    /// files after the drag ends, so they must not be auto-removed (and their temp files deleted).
+    private(set) var dragConsumedByShare: Bool = false
+
     func beginDrag() {
         isDragging = true
+        dragConsumedByShare = false
+    }
+
+    func markDragConsumedByShare() {
+        if isDragging { dragConsumedByShare = true }
     }
 
     func endDrag() {

@@ -43,7 +43,8 @@ struct Bookmark: Sendable, Equatable, Codable {
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             )
-            if isStale, let newData = try? url.bookmarkData(options: [.withSecurityScope]) {
+            // Creating a security-scoped bookmark needs active access to the resource in the sandbox.
+            if isStale, let newData = url.accessSecurityScopedResource(accessor: { try? $0.bookmarkData(options: [.withSecurityScope]) }) {
                 NSLog("⚠️ Bookmark was stale for \(url.path), refreshed")
                 return (url, newData)
             }

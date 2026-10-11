@@ -48,7 +48,13 @@ actor ThumbnailService {
     }
     
     func clearCache(for url: URL) {
-        cache = cache.filter { !$0.key.starts(with: url.path) }
+        // Keys are "<path>_<w>x<h>"; match the exact path or a descendant, not a sibling sharing the prefix.
+        let path = url.path
+        cache = cache.filter { key, _ in
+            guard let sizeSeparator = key.lastIndex(of: "_") else { return true }
+            let keyPath = key[..<sizeSeparator]
+            return keyPath != path && !keyPath.hasPrefix(path + "/")
+        }
     }
     
     // MARK: - Private Methods

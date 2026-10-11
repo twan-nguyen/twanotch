@@ -28,6 +28,7 @@ struct FileShareView: View {
             .background(NSViewHost(view: $hostView))
             .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data, .image], isTargeted: $vm.dropZoneTargeting) { providers in
                 interactionNonce = .init()
+                ShelfSelectionModel.shared.markDragConsumedByShare()
                 vm.dropEvent = true
                 Task { await handleDrop(providers) }
                 return true

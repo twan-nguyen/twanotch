@@ -36,8 +36,10 @@ extension NSItemProvider {
                     cont.resume(returning: nil)
                     return
                 }
-                if let url = item as? URL, let data = try? Data(contentsOf: url) {
-                    if !url.absoluteString.contains("com.apple.SwiftUI.filePromises") {
+                if let url = item as? URL {
+                    // Only SwiftUI file promises are consumed here; check before reading the file into memory.
+                    guard url.absoluteString.contains("com.apple.SwiftUI.filePromises"),
+                          let data = try? Data(contentsOf: url) else {
                         cont.resume(returning: nil)
                         return
                     }

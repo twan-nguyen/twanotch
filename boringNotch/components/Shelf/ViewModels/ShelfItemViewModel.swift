@@ -44,6 +44,7 @@ final class ShelfItemViewModel: ObservableObject {
         item = newItem
         displayName = newItem.displayName
         icon = newItem.icon
+        Task { await loadThumbnail() }
     }
 
     var isSelected: Bool { selection.isSelected(item.id) }
