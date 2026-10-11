@@ -1177,6 +1177,16 @@ struct Appearance: View {
     @State private var name: String = ""
     @State private var url: String = ""
     @State private var speed: CGFloat = 1.0
+
+    /// The Lottie URL typed in the "Add new visualizer" sheet, or nil unless it is a full http(s) URL.
+    private var newVisualizerURL: URL? {
+        guard let parsed = URL(string: url.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let scheme = parsed.scheme?.lowercased(), scheme == "https" || scheme == "http",
+              parsed.host != nil
+        else { return nil }
+        return parsed
+    }
+
     var body: some View {
         Form {
             Section {
@@ -1348,10 +1358,11 @@ struct Appearance: View {
                             }
 
                             Button {
+                                guard let visualizerURL = newVisualizerURL else { return }
                                 let visualizer: CustomVisualizer = .init(
                                     UUID: UUID(),
                                     name: name,
-                                    url: URL(string: url)!,
+                                    url: visualizerURL,
                                     speed: speed
                                 )
 
@@ -1365,6 +1376,7 @@ struct Appearance: View {
                                     .frame(maxWidth: .infinity, alignment: .center)
                             }
                             .buttonStyle(BorderedProminentButtonStyle())
+                            .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || newVisualizerURL == nil)
                         }
                     }
                     .textFieldStyle(RoundedBorderTextFieldStyle())

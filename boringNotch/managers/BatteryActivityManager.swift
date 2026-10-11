@@ -60,9 +60,12 @@ class BatteryActivityManager {
         )
     }
 
-    /// Called when low power mode is enabled or disabled
+    /// Called when low power mode is enabled or disabled. Foundation posts this notification on a
+    /// background queue, so hop to main where the IOPS callback and the notification queue live.
     @objc private func lowPowerModeChanged() {
-        notifyBatteryChanges()
+        DispatchQueue.main.async { [weak self] in
+            self?.notifyBatteryChanges()
+        }
     }
     
     /// Starts monitoring battery changes
@@ -75,13 +78,14 @@ class BatteryActivityManager {
             return
         }
         batterySource = powerSource
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), powerSource, .defaultMode)
+        // Always the main run loop, so battery state is only touched on main.
+        CFRunLoopAddSource(CFRunLoopGetMain(), powerSource, .defaultMode)
     }
 
     /// Stops monitoring battery changes
     private func stopMonitoring() {
         if let powerSource = batterySource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), powerSource, .defaultMode)
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), powerSource, .defaultMode)
             batterySource = nil
         }
     }

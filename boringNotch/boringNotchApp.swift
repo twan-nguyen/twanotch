@@ -411,10 +411,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if !Defaults[.showOnAllDisplays] {
-            let viewModel = self.vm
-            let window = createBoringNotchWindow(
-                for: NSScreen.main ?? NSScreen.screens.first!, with: viewModel)
-            self.window = window
+            // With no display attached (e.g. a headless Mac mini at login) skip the window;
+            // adjustWindowPosition creates it once a screen appears.
+            if let screen = NSScreen.main ?? NSScreen.screens.first {
+                self.window = createBoringNotchWindow(for: screen, with: self.vm)
+            }
             adjustWindowPosition(changeAlpha: true)
         } else {
             adjustWindowPosition(changeAlpha: true)

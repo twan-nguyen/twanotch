@@ -401,7 +401,8 @@ final class ShelfItemViewModel: ObservableObject {
     private final class MenuActionTarget: NSObject {
         let item: ShelfItem
         weak var view: NSView?
-        unowned let viewModel: ShelfItemViewModel
+        // Weak: the item view (and its view model) can be removed while the menu is still open.
+        weak var viewModel: ShelfItemViewModel?
 
         // Keep associated objects (like accessory view handlers) without magic keys
         private static var sliderHandlerAssoc = AssociatedObject<AnyObject>()
@@ -468,7 +469,7 @@ final class ShelfItemViewModel: ObservableObject {
                     return nil
                 }
                 if !urls.isEmpty {
-                    viewModel.onQuickLookRequest?(urls)
+                    viewModel?.onQuickLookRequest?(urls)
                 }
 
             case "Open":
@@ -476,7 +477,7 @@ final class ShelfItemViewModel: ObservableObject {
                 for it in selected { ShelfActionService.open(it) }
 
             case "Share…":
-                viewModel.shareItem(from: view)
+                viewModel?.shareItem(from: view)
 
             case "Rename":
                 let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
