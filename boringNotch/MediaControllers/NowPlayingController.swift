@@ -444,11 +444,23 @@ actor JSONLinesPipeHandler {
             pendingRead = continuation
             
             fileHandle.readabilityHandler = { [weak self] handle in
-                // read(upToCount:) reports errors instead of raising like availableData does on a closed handle.
-                let data = (try? handle.read(upToCount: 65536)) ?? Data()
+                let data = Self.readAvailableBytes(from: handle.fileDescriptor)
                 handle.readabilityHandler = nil
                 Task { await self?.finishRead(with: data) }
             }
+        }
+    }
+
+    /// Returns the bytes already waiting in the pipe, or empty data at end of file or on error.
+    /// FileHandle.read(upToCount:) blocks on a pipe until the full count arrives, and availableData
+    /// raises on a closed handle, so read(2) is used directly.
+    private static func readAvailableBytes(from descriptor: Int32) -> Data {
+        var bytes = [UInt8](repeating: 0, count: 65536)
+        while true {
+            let count = read(descriptor, &bytes, bytes.count)
+            if count > 0 { return Data(bytes[0..<count]) }
+            if count < 0 && errno == EINTR { continue }
+            return Data()
         }
     }
     
