@@ -933,7 +933,9 @@ struct About: View {
 struct ClaudeSettings: View {
     @ObservedObject private var manager = ClaudeUsageManager.shared
     @ObservedObject private var coordinator = BoringViewCoordinator.shared
+    @ObservedObject private var prompts = ClaudePromptCenter.shared
     @Default(.showClaudeUsage) var showClaudeUsage
+    @Default(.answerClaudeInNotch) var answerClaudeInNotch
 
     var body: some View {
         Form {
@@ -953,6 +955,30 @@ struct ClaudeSettings: View {
                 Text("Display")
             } footer: {
                 Text("Shows your Claude plan limits, read with the sign-in Claude Code keeps in your keychain. Twanotch never stores or refreshes that token. When it has expired, Twanotch starts Claude Code for a few seconds in the background so Claude Code refreshes it.")
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+
+            Section {
+                Toggle(isOn: Binding(
+                    get: { answerClaudeInNotch },
+                    set: { enabled in
+                        answerClaudeInNotch = enabled
+                        Task { await prompts.setEnabled(enabled) }
+                    }
+                )) {
+                    Text("Answer Claude Code in the notch")
+                }
+                .disabled(prompts.isConfiguring)
+                if let problem = prompts.problem {
+                    Label(problem, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+            } header: {
+                Text("Prompts")
+            } footer: {
+                Text("Permission requests and questions from Claude Code on this Mac also open in the notch. Claude Code keeps asking as usual, and the first answer wins. Twanotch adds two hooks to ~/.claude/settings.json and keeps the previous file as settings.json.twanotch-backup. Restart running Claude Code sessions to pick up the change.")
                     .multilineTextAlignment(.trailing)
                     .foregroundStyle(.secondary)
                     .font(.caption)

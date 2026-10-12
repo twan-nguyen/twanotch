@@ -1061,6 +1061,186 @@
         }
       }
     },
+    "+%lld waiting" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%lld đang chờ"
+          }
+        }
+      }
+    },
+    "Allow" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cho phép"
+          }
+        }
+      }
+    },
+    "Allow, and do not ask again for similar requests" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cho phép và không hỏi lại với yêu cầu tương tự"
+          }
+        }
+      }
+    },
+    "Always allow" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luôn cho phép"
+          }
+        }
+      }
+    },
+    "Answer Claude Code in the notch" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trả lời Claude Code trong notch"
+          }
+        }
+      }
+    },
+    "Answer in Claude Code" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trả lời trong Claude Code"
+          }
+        }
+      }
+    },
+    "asks" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hỏi"
+          }
+        }
+      }
+    },
+    "asks · %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hỏi · %@"
+          }
+        }
+      }
+    },
+    "Claude is waiting for your answer" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude đang chờ bạn trả lời"
+          }
+        }
+      }
+    },
+    "Deny" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Từ chối"
+          }
+        }
+      }
+    },
+    "Goes back to Claude Code when the time runs out" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hết giờ thì câu hỏi quay về Claude Code"
+          }
+        }
+      }
+    },
+    "Next" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiếp"
+          }
+        }
+      }
+    },
+    "Permission requests and questions from Claude Code on this Mac also open in the notch. Claude Code keeps asking as usual, and the first answer wins. Twanotch adds two hooks to ~/.claude/settings.json and keeps the previous file as settings.json.twanotch-backup. Restart running Claude Code sessions to pick up the change." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yêu cầu quyền và câu hỏi của Claude Code trên máy này cũng hiện trong notch. Claude Code vẫn hỏi như bình thường, câu trả lời nào đến trước thì được dùng. Twanotch thêm hai hook vào ~/.claude/settings.json và giữ bản cũ ở settings.json.twanotch-backup. Khởi động lại các phiên Claude Code đang chạy để áp dụng."
+          }
+        }
+      }
+    },
+    "Port %@ is unavailable: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không dùng được cổng %1$@: %2$@"
+          }
+        }
+      }
+    },
+    "Prompts" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Câu hỏi"
+          }
+        }
+      }
+    },
+    "Send" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gửi"
+          }
+        }
+      }
+    },
+    "Type your own answer or pick there instead" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tự gõ câu trả lời hoặc chọn ở đó"
+          }
+        }
+      }
+    },
+    "wants to use %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "muốn dùng %@"
+          }
+        }
+      }
+    },
     "• Bug fixes" : {
       "localizations" : {
         "ar" : {

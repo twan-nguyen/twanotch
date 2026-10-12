@@ -280,6 +280,22 @@ final class XPCHelperClient: NSObject {
             return nil
         }
     }
+
+    /// Adds or removes Twanotch's Claude Code hooks. Returns nil on success, otherwise why it failed.
+    nonisolated func configureClaudeHooks(install: Bool, port: Int, token: String) async -> String? {
+        do {
+            let service = await MainActor.run {
+                ensureRemoteService()
+            }
+            return try await service.withContinuation { service, continuation in
+                service.configureClaudeHooks(install, port: port, token: token) { message in
+                    continuation.resume(returning: message)
+                }
+            }
+        } catch {
+            return String(localized: "Helper unavailable")
+        }
+    }
 }
 
 extension Notification.Name {

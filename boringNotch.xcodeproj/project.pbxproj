@@ -88,6 +88,9 @@
 		14A7E5882C64A89C008C1BE9 /* HelloAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14A7E5872C64A89C008C1BE9 /* HelloAnimation.swift */; };
 		14A7E5972C65FD31008C1BE9 /* boring.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 14A7E5962C65FD31008C1BE9 /* boring.m4a */; };
 		14C08BB62C8DE42D000F8AA0 /* CalendarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C08BB52C8DE42D000F8AA0 /* CalendarManager.swift */; };
+		C1A0DE5E2E9B000100A1C0DE /* ClaudePromptServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A0DE5F2E9B000100A1C0DE /* ClaudePromptServer.swift */; };
+		C1A0DE602E9B000100A1C0DE /* ClaudePromptCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A0DE612E9B000100A1C0DE /* ClaudePromptCenter.swift */; };
+		C1A0DE622E9B000100A1C0DE /* ClaudePromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A0DE632E9B000100A1C0DE /* ClaudePromptView.swift */; };
 		C1A0DE5A2E9B000100A1C0DE /* ClaudeUsageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A0DE5B2E9B000100A1C0DE /* ClaudeUsageManager.swift */; };
 		14C08BB92C8DE4B1000F8AA0 /* BoringCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C08BB82C8DE4B1000F8AA0 /* BoringCalendar.swift */; };
 		14C08BC12C8E03AD000F8AA0 /* NSImage+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C08BC02C8E03AD000F8AA0 /* NSImage+Extensions.swift */; };
@@ -260,6 +263,9 @@
 		14A7E5872C64A89C008C1BE9 /* HelloAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelloAnimation.swift; sourceTree = "<group>"; };
 		14A7E5962C65FD31008C1BE9 /* boring.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = boring.m4a; sourceTree = "<group>"; };
 		14C08BB52C8DE42D000F8AA0 /* CalendarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarManager.swift; sourceTree = "<group>"; };
+		C1A0DE5F2E9B000100A1C0DE /* ClaudePromptServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePromptServer.swift; sourceTree = "<group>"; };
+		C1A0DE612E9B000100A1C0DE /* ClaudePromptCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePromptCenter.swift; sourceTree = "<group>"; };
+		C1A0DE632E9B000100A1C0DE /* ClaudePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePromptView.swift; sourceTree = "<group>"; };
 		C1A0DE5B2E9B000100A1C0DE /* ClaudeUsageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeUsageManager.swift; sourceTree = "<group>"; };
 		14C08BB82C8DE4B1000F8AA0 /* BoringCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoringCalendar.swift; sourceTree = "<group>"; };
 		14C08BC02C8E03AD000F8AA0 /* NSImage+Extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSImage+Extensions.swift"; sourceTree = "<group>"; };
@@ -526,6 +532,8 @@
 				149E0B962C737D00006418B1 /* WebcamManager.swift */,
 				14C08BB52C8DE42D000F8AA0 /* CalendarManager.swift */,
 				C1A0DE5B2E9B000100A1C0DE /* ClaudeUsageManager.swift */,
+				C1A0DE612E9B000100A1C0DE /* ClaudePromptCenter.swift */,
+				C1A0DE5F2E9B000100A1C0DE /* ClaudePromptServer.swift */,
 				B1F0A0012E60000100000001 /* BrightnessManager.swift */,
 				59D8C23B2E589FAA00147B33 /* VolumeManager.swift */,
 			);
@@ -718,6 +726,7 @@
 				1160F8D72DD98230006FBB94 /* NotchShape.swift */,
 				9AB0C6BB2C73C9CB00F7CD30 /* NotchHomeView.swift */,
 				C1A0DE5D2E9B000100A1C0DE /* ClaudeUsageView.swift */,
+				C1A0DE632E9B000100A1C0DE /* ClaudePromptView.swift */,
 				14D570C52C5F38210011E668 /* BoringHeader.swift */,
 				14D570D12C5F6C6A0011E668 /* BoringExtrasMenu.swift */,
 				1471A8582C6281BD0058408D /* BoringNotchWindow.swift */,
@@ -991,6 +1000,9 @@
 				B17266E32C65F7FB0031BA0D /* WhatsNewView.swift in Sources */,
 				14C08BB62C8DE42D000F8AA0 /* CalendarManager.swift in Sources */,
 				C1A0DE5A2E9B000100A1C0DE /* ClaudeUsageManager.swift in Sources */,
+				C1A0DE622E9B000100A1C0DE /* ClaudePromptView.swift in Sources */,
+				C1A0DE602E9B000100A1C0DE /* ClaudePromptCenter.swift in Sources */,
+				C1A0DE5E2E9B000100A1C0DE /* ClaudePromptServer.swift in Sources */,
 				14D570CD2C5F4BB70011E668 /* BoringBattery.swift in Sources */,
 				B10F84A32C6C9596009F3026 /* TestView.swift in Sources */,
 				1443E7F32C609DCE0027C1FC /* matters.swift in Sources */,

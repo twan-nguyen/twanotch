@@ -22,5 +22,7 @@ import Foundation
     func setScreenBrightness(_ value: Float, with reply: @escaping (Bool) -> Void)
     // Claude plan usage, read with Claude Code's keychain token (performed by the helper)
     func fetchClaudeUsage(with reply: @escaping (Data) -> Void)
+    // Adds or removes the Claude Code hooks that route prompts to the notch; replies nil on success
+    func configureClaudeHooks(_ install: Bool, port: Int, token: String, with reply: @escaping (String?) -> Void)
 }
 

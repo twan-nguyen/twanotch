@@ -176,6 +176,10 @@ class BoringNotchXPCHelper: NSObject, BoringNotchXPCHelperProtocol {
         }
     }
 
+    @objc func configureClaudeHooks(_ install: Bool, port: Int, token: String, with reply: @escaping (String?) -> Void) {
+        reply(ClaudeHooksInstaller.configure(install: install, port: port, token: token))
+    }
+
     // MARK: - Private helpers for DisplayServices / IOKit access
     private func displayServicesGetBrightness(displayID: CGDirectDisplayID, out: inout Float) -> Bool {
         guard let sym = dlsym(DisplayServicesHandle.handle, "DisplayServicesGetBrightness") else { return false }

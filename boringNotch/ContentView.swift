@@ -25,6 +25,7 @@ struct ContentView: View {
     @ObservedObject var brightnessManager = BrightnessManager.shared
     @ObservedObject var volumeManager = VolumeManager.shared
     @ObservedObject var claudeUsage = ClaudeUsageManager.shared
+    @ObservedObject var claudePrompts = ClaudePromptCenter.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var anyDropDebounceTask: Task<Void, Never>?
@@ -69,6 +70,8 @@ struct ContentView: View {
             && hardware.showsBattery
         {
             chinWidth = 640
+        } else if showsClaudePrompt {
+            chinWidth += 2 * claudeSideWidth + 20
         } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
             && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle)
             && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed
@@ -104,6 +107,18 @@ struct ContentView: View {
         !coordinator.expandingView.show && vm.notchState == .closed
             && !musicManager.isPlaying && musicManager.isPlayerIdle
             && closedNotchClaudeSession != nil && !vm.hideOnClosed
+    }
+
+    /// A Claude Code prompt waiting for an answer takes over the closed notch.
+    private var showsClaudePrompt: Bool {
+        claudePrompts.current != nil && vm.notchState == .closed && !vm.hideOnClosed
+    }
+
+    /// With every display showing a notch, only the one under the pointer opens for a prompt.
+    private var opensForClaudePrompts: Bool {
+        guard Defaults[.showOnAllDisplays] else { return true }
+        guard let screen = vm.screenUUID.flatMap({ NSScreen.screen(withUUID: $0) }) else { return false }
+        return screen.frame.contains(NSEvent.mouseLocation)
     }
 
     var body: some View {
@@ -240,6 +255,17 @@ struct ContentView: View {
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
+        .onChange(of: claudePrompts.current?.id) { previous, current in
+            if current != nil, previous == nil, vm.notchState == .closed, opensForClaudePrompts {
+                doOpen()
+            } else if current == nil, previous != nil, vm.notchState == .open, !isHovering,
+                      !SharingStateManager.shared.preventNotchClose
+            {
+                withAnimation(animationSpring) {
+                    vm.close()
+                }
+            }
+        }
         .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
             anyDropDebounceTask?.cancel()
 
@@ -314,6 +340,8 @@ struct ContentView: View {
                       } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)
+                      } else if showsClaudePrompt {
+                          ClaudePromptActivity()
                       } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
                           MusicLiveActivity()
                               .frame(alignment: .center)
@@ -375,13 +403,17 @@ struct ContentView: View {
               .zIndex(2)
             if vm.notchState == .open {
                 VStack {
-                    switch coordinator.currentView {
-                    case .home:
-                        NotchHomeView(albumArtNamespace: albumArtNamespace)
-                    case .shelf:
-                        ShelfView()
-                    case .claude:
-                        ClaudeUsageView()
+                    if let prompt = claudePrompts.current {
+                        ClaudePromptView(prompt: prompt)
+                    } else {
+                        switch coordinator.currentView {
+                        case .home:
+                            NotchHomeView(albumArtNamespace: albumArtNamespace)
+                        case .shelf:
+                            ShelfView()
+                        case .claude:
+                            ClaudeUsageView()
+                        }
                     }
                 }
                 .transition(
@@ -429,6 +461,22 @@ struct ContentView: View {
                 .fill(.black)
                 .frame(width: vm.closedNotchSize.width - 20)
             ClaudeClosedNotchPercent(window: session)
+                .frame(width: claudeSideWidth)
+        }
+        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+    }
+
+    @ViewBuilder
+    func ClaudePromptActivity() -> some View {
+        HStack {
+            ClaudeMascot()
+                .fill(ClaudeMascot.tint)
+                .frame(width: 16, height: 11)
+                .frame(width: claudeSideWidth)
+            Rectangle()
+                .fill(.black)
+                .frame(width: vm.closedNotchSize.width - 20)
+            ClaudePromptIndicator(count: claudePrompts.prompts.count)
                 .frame(width: claudeSideWidth)
         }
         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)

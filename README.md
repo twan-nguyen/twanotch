@@ -15,6 +15,7 @@
 - File shelf with AirDrop and quick share.
 - Volume, brightness and keyboard backlight HUDs.
 - Claude plan usage: what is left of your 5-hour and weekly limits, and when they reset.
+- Answer Claude Code's permission requests and questions right from the notch.
 - English and Vietnamese.
 
 ## Install
@@ -35,6 +36,8 @@ On first launch, allow Twanotch in System Settings > Privacy & Security > Access
 ## Claude usage
 
 Needs [Claude Code](https://code.claude.com) installed and signed in. Twanotch reads Claude Code's sign-in from the keychain and never stores it; when it expires, Twanotch runs Claude Code briefly in the background so it can refresh. Turn it on or off in Settings > Claude.
+
+To answer Claude Code from the notch, turn on **Answer Claude Code in the notch** in Settings > Claude. Twanotch adds two hooks to `~/.claude/settings.json` (the previous file is kept as `settings.json.twanotch-backup`); restart running Claude Code sessions afterwards. Claude Code still asks as usual, and the first answer wins.
 
 ## Credits
 

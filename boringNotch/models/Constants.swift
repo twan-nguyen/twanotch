@@ -180,6 +180,9 @@ extension Defaults.Keys {
     // MARK: Claude usage
     static let showClaudeUsage = Key<Bool>("showClaudeUsage", default: true)
     static let showClaudeInClosedNotch = Key<Bool>("showClaudeInClosedNotch", default: true)
+    static let answerClaudeInNotch = Key<Bool>("answerClaudeInNotch", default: false)
+    /// Shared secret the Claude Code hooks send, so other local processes cannot post prompts.
+    static let claudePromptToken = Key<String>("claudePromptToken", default: "")
     
     // MARK: Calendar
     static let calendarSelectionState = Key<CalendarSelectionState>("calendarSelectionState", default: .all)
