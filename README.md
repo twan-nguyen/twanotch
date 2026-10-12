@@ -18,10 +18,10 @@
 - System HUD replacement for volume, brightness and keyboard backlight.
 - English and Vietnamese interface.
 
-## How it differs from upstream
+## How it differs from boring.notch
 
 - Own bundle identifier (`com.twan.twanotch`), name and icon, so it installs side by side with Boring Notch and keeps separate settings and permissions.
-- Sparkle auto-update is disabled; upstream releases can never replace this build. Update by rebuilding from source.
+- Sparkle auto-update is disabled; boring.notch releases can never replace this build. Update by rebuilding from source.
 - Hardware-aware: features the Mac cannot drive (battery, display brightness on external monitors, keyboard backlight, mirror without a camera) are hidden, and their keys go back to macOS. On a Mac mini this hides most of them. Toggle it in Settings > General > Hardware.
 - Settings redesigned in the style of macOS System Settings.
 - Vietnamese translation, with a language picker in Settings > General > Language (System default, English, Tiếng Việt). Changing it restarts the app.
@@ -58,19 +58,6 @@ If macOS blocks the first launch of an unsigned build:
 ```bash
 xattr -dr com.apple.quarantine /Applications/TwaNotch.app
 ```
-
-## Upstream reference
-
-This repository starts from a snapshot of boring.notch at commit `64b5459` and does not share its git history, so upstream changes are not merged automatically. To look at or port an upstream fix:
-
-```bash
-git remote add upstream https://github.com/TheBoredTeam/boring.notch.git
-git remote set-url --push upstream no_push
-git fetch upstream
-git diff 64b5459 upstream/main -- boringNotch/managers/MusicManager.swift
-```
-
-The source folder and target names (`boringNotch`, `BoringNotchXPCHelper`) are kept unchanged so upstream files still line up path for path.
 
 ## Translations
 
