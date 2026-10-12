@@ -10,22 +10,30 @@ import SwiftUI
 struct ClaudePromptView: View {
     @ObservedObject private var center = ClaudePromptCenter.shared
     let prompt: ClaudePrompt
+    /// Clicks are ignored for a moment after a prompt appears, since it can open right under the pointer.
+    @State private var accepting = false
 
     var body: some View {
         Group {
             switch prompt.content {
-            case let .permission(tool, summary, detail, canAlwaysAllow):
+            case let .permission(tool, summary, detail, alwaysAllow):
                 ClaudePermissionPrompt(
-                    prompt: prompt, tool: tool, summary: summary, detail: detail, canAlwaysAllow: canAlwaysAllow,
+                    prompt: prompt, tool: tool, summary: summary, detail: detail, alwaysAllow: alwaysAllow,
                     queued: center.prompts.count - 1)
             case let .questions(questions):
                 ClaudeQuestionPrompt(prompt: prompt, questions: questions, queued: center.prompts.count - 1)
             }
         }
         .id(prompt.id)
+        .allowsHitTesting(accepting)
         .padding(.horizontal, 4)
         .padding(.bottom, 4)
         .transition(.opacity)
+        .task(id: prompt.id) {
+            accepting = false
+            try? await Task.sleep(for: .milliseconds(600))
+            accepting = true
+        }
     }
 }
 
@@ -69,40 +77,51 @@ private struct ClaudePermissionPrompt: View {
     let tool: String
     let summary: String
     let detail: String?
-    let canAlwaysAllow: Bool
+    let alwaysAllow: String?
     let queued: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ClaudePromptHeader(project: prompt.project, action: Text("wants to use \(tool)"), queued: queued)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(summary)
-                    .font(.system(.callout, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .lineLimit(3)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
-                if let detail, !detail.isEmpty {
-                    Text(detail)
+            // The whole command stays readable: anything cut off could be the part that matters.
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(summary)
+                        .font(.system(.callout, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                    if let detail, !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.gray)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(10)
+            }
+            .scrollIndicators(.automatic)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.08)))
+
+            HStack(spacing: 8) {
+                if let alwaysAllow {
+                    Text("Always allow saves \(alwaysAllow)")
                         .font(.caption)
                         .foregroundStyle(.gray)
                         .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(alwaysAllow)
                 }
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.08)))
-            .help(summary)
-
-            HStack(spacing: 8) {
-                Spacer()
+                Spacer(minLength: 8)
                 Button("Deny") { center.deny(prompt) }
                     .buttonStyle(ClaudePromptButtonStyle(kind: .plain))
-                if canAlwaysAllow {
+                if let alwaysAllow {
                     Button("Always allow") { center.allow(prompt, always: true) }
                         .buttonStyle(ClaudePromptButtonStyle(kind: .plain))
-                        .help("Allow, and do not ask again for similar requests")
+                        .help(alwaysAllow)
                 }
                 Button("Allow") { center.allow(prompt) }
                     .buttonStyle(ClaudePromptButtonStyle(kind: .prominent))
@@ -210,6 +229,7 @@ private struct ClaudeQuestionPrompt: View {
         if isLast {
             center.answer(prompt, with: answers)
         } else {
+            center.extend(prompt)
             index += 1
             selection = []
         }

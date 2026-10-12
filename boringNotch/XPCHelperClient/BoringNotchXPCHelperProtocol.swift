@@ -24,5 +24,7 @@ import Foundation
     func fetchClaudeUsage(with reply: @escaping (Data) -> Void)
     // Adds or removes the Claude Code hooks that route prompts to the notch; replies nil on success
     func configureClaudeHooks(_ install: Bool, port: Int, token: String, with reply: @escaping (String?) -> Void)
+    // Clawd sprites read from the Claude desktop app; replies nil when it is missing or unreadable
+    func fetchClawdSprites(with reply: @escaping (Data?) -> Void)
 }
 

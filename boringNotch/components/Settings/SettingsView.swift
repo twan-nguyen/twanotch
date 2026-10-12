@@ -971,14 +971,14 @@ struct ClaudeSettings: View {
                     Text("Answer Claude Code in the notch")
                 }
                 .disabled(prompts.isConfiguring)
-                if let problem = prompts.problem {
+                ForEach([prompts.hooksProblem, prompts.serverProblem].compactMap { $0 }, id: \.self) { problem in
                     Label(problem, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                 }
             } header: {
                 Text("Prompts")
             } footer: {
-                Text("Permission requests and questions from Claude Code on this Mac also open in the notch. Claude Code keeps asking as usual, and the first answer wins. Twanotch adds two hooks to ~/.claude/settings.json and keeps the previous file as settings.json.twanotch-backup. Restart running Claude Code sessions to pick up the change.")
+                Text("Permission requests and questions from Claude Code on this Mac also open in the notch, and Clawd shows when Claude is working. Claude Code keeps asking as usual, and the first answer wins. Twanotch adds its hooks to ~/.claude/settings.json and keeps the original file as settings.json.twanotch-backup. Restart running Claude Code sessions to pick up the change.")
                     .multilineTextAlignment(.trailing)
                     .foregroundStyle(.secondary)
                     .font(.caption)

@@ -2,7 +2,7 @@
 //  ClaudeHooksInstaller.swift
 //  BoringNotchXPCHelper
 //
-//  Adds or removes the Claude Code hooks that send permission requests and questions to the notch.
+//  Adds or removes the Claude Code hooks that send permission requests, questions and activity to the notch.
 //  The sandboxed app cannot write ~/.claude/settings.json, so the helper does it. JavaScriptCore does
 //  the merge so key order and the two-space layout Claude Code writes stay as they were.
 //
@@ -49,8 +49,11 @@ enum ClaudeHooksInstaller {
                 try fileManager.createDirectory(
                     at: settingsURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             } else {
-                try original.write(
-                    to: settingsURL.appendingPathExtension("twanotch-backup"), atomically: true, encoding: .utf8)
+                // Keep the file as it was before Twanotch first touched it; later writes only add or remove our hooks.
+                let backupURL = settingsURL.appendingPathExtension("twanotch-backup")
+                if !fileManager.fileExists(atPath: backupURL.path) {
+                    try original.write(to: backupURL, atomically: true, encoding: .utf8)
+                }
             }
             try updated.write(to: settingsURL, atomically: true, encoding: .utf8)
             return nil
@@ -90,6 +93,12 @@ enum ClaudeHooksInstaller {
               { matcher: '*', hooks: [hook('/twanotch/permission', 300)] });
             (hooks.PreToolUse = hooks.PreToolUse || []).push(
               { matcher: 'AskUserQuestion', hooks: [hook('/twanotch/question', 60)] });
+            // Activity only, answered at once: when Claude starts, keeps working, and stops.
+            for (const event of ['UserPromptSubmit', 'PreToolUse', 'Stop', 'StopFailure', 'SessionEnd']) {
+              const group = { hooks: [hook('/twanotch/event', 5)] };
+              if (event === 'PreToolUse') group.matcher = '*';
+              (hooks[event] = hooks[event] || []).push(group);
+            }
           }
           if (Object.keys(hooks).length > 0 || hadHooks) settings.hooks = hooks;
           const newline = text === '' || text.endsWith('\\n') ? '\\n' : '';

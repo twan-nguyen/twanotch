@@ -180,6 +180,10 @@ class BoringNotchXPCHelper: NSObject, BoringNotchXPCHelperProtocol {
         reply(ClaudeHooksInstaller.configure(install: install, port: port, token: token))
     }
 
+    @objc func fetchClawdSprites(with reply: @escaping (Data?) -> Void) {
+        reply(ClawdSpriteReader.read())
+    }
+
     // MARK: - Private helpers for DisplayServices / IOKit access
     private func displayServicesGetBrightness(displayID: CGDirectDisplayID, out: inout Float) -> Bool {
         guard let sym = dlsym(DisplayServicesHandle.handle, "DisplayServicesGetBrightness") else { return false }

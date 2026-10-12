@@ -311,12 +311,11 @@ struct ClaudeClosedNotchPercent: View {
 /// The mascot and the session's remaining percentage, shown left of the music activity.
 struct ClaudeClosedNotchBadge: View {
     let window: ClaudeUsageWindow
+    @ObservedObject private var prompts = ClaudePromptCenter.shared
 
     var body: some View {
         HStack(spacing: 4) {
-            ClaudeMascot()
-                .fill(ClaudeMascot.tint)
-                .frame(width: 14, height: 10)
+            ClawdView(activity: prompts.activity, size: CGSize(width: 18, height: 13))
             ClaudeClosedNotchPercent(window: window)
         }
     }

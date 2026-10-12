@@ -296,6 +296,22 @@ final class XPCHelperClient: NSObject {
             return String(localized: "Helper unavailable")
         }
     }
+
+    /// Clawd's sprites as JSON (see ClawdSpriteReader), or nil when they cannot be read.
+    nonisolated func fetchClawdSprites() async -> Data? {
+        do {
+            let service = await MainActor.run {
+                ensureRemoteService()
+            }
+            return try await service.withContinuation { service, continuation in
+                service.fetchClawdSprites { data in
+                    continuation.resume(returning: data)
+                }
+            }
+        } catch {
+            return nil
+        }
+    }
 }
 
 extension Notification.Name {

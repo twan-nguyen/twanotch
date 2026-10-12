@@ -101,6 +101,10 @@ struct ContentView: View {
     private let claudeSideWidth: CGFloat = 32
     /// Width of the mascot-and-percentage badge at the left of the music activity.
     private let claudeBadgeWidth: CGFloat = 50
+    /// Clawd beside the closed notch, fitted inside the menu bar height.
+    private var clawdSize: CGSize {
+        CGSize(width: claudeSideWidth - 4, height: min(18, max(10, vm.effectiveClosedNotchHeight - 12)))
+    }
 
     /// With no music, the Claude session gets the closed notch to itself.
     private var showsClaudeActivity: Bool {
@@ -256,7 +260,7 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .environmentObject(vm)
         .onChange(of: claudePrompts.current?.id) { previous, current in
-            if current != nil, previous == nil, vm.notchState == .closed, opensForClaudePrompts {
+            if current != nil, previous == nil, vm.notchState == .closed, !vm.hideOnClosed, opensForClaudePrompts {
                 doOpen()
             } else if current == nil, previous != nil, vm.notchState == .open, !isHovering,
                       !SharingStateManager.shared.preventNotchClose
@@ -453,9 +457,7 @@ struct ContentView: View {
     @ViewBuilder
     func ClaudeLiveActivity(session: ClaudeUsageWindow) -> some View {
         HStack {
-            ClaudeMascot()
-                .fill(ClaudeMascot.tint)
-                .frame(width: 16, height: 11)
+            ClawdView(activity: claudePrompts.activity, size: clawdSize)
                 .frame(width: claudeSideWidth)
             Rectangle()
                 .fill(.black)
@@ -469,9 +471,7 @@ struct ContentView: View {
     @ViewBuilder
     func ClaudePromptActivity() -> some View {
         HStack {
-            ClaudeMascot()
-                .fill(ClaudeMascot.tint)
-                .frame(width: 16, height: 11)
+            ClawdView(activity: .waiting, size: clawdSize)
                 .frame(width: claudeSideWidth)
             Rectangle()
                 .fill(.black)

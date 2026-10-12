@@ -37,7 +37,9 @@ On first launch, allow Twanotch in System Settings > Privacy & Security > Access
 
 Needs [Claude Code](https://code.claude.com) installed and signed in. Twanotch reads Claude Code's sign-in from the keychain and never stores it; when it expires, Twanotch runs Claude Code briefly in the background so it can refresh. Turn it on or off in Settings > Claude.
 
-To answer Claude Code from the notch, turn on **Answer Claude Code in the notch** in Settings > Claude. Twanotch adds two hooks to `~/.claude/settings.json` (the previous file is kept as `settings.json.twanotch-backup`); restart running Claude Code sessions afterwards. Claude Code still asks as usual, and the first answer wins.
+To answer Claude Code from the notch, turn on **Answer Claude Code in the notch** in Settings > Claude. Twanotch adds its hooks to `~/.claude/settings.json` (the original file is kept as `settings.json.twanotch-backup`); restart running Claude Code sessions afterwards. Claude Code still asks as usual, and the first answer wins. With the Claude desktop app installed, Clawd in the notch also shows whether Claude is idle, working or waiting for you.
+
+Before uninstalling Twanotch, turn this off so the hooks are removed, or delete the hooks whose URL contains `/twanotch/` from `~/.claude/settings.json`.
 
 ## Credits
 

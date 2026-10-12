@@ -1071,6 +1071,16 @@
         }
       }
     },
+    "all projects" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mọi dự án"
+          }
+        }
+      }
+    },
     "Allow" : {
       "localizations" : {
         "vi" : {
@@ -1081,22 +1091,22 @@
         }
       }
     },
-    "Allow, and do not ask again for similar requests" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cho phép và không hỏi lại với yêu cầu tương tự"
-          }
-        }
-      }
-    },
     "Always allow" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Luôn cho phép"
+          }
+        }
+      }
+    },
+    "Always allow saves %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luôn cho phép sẽ lưu %@"
           }
         }
       }
@@ -1141,12 +1151,52 @@
         }
       }
     },
+    "Claude Code settings" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cài đặt Claude Code"
+          }
+        }
+      }
+    },
+    "Claude is idle" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude đang rảnh"
+          }
+        }
+      }
+    },
     "Claude is waiting for your answer" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claude đang chờ bạn trả lời"
+          }
+        }
+      }
+    },
+    "Claude is working" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude đang làm việc"
+          }
+        }
+      }
+    },
+    "Could not update Claude Code settings: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không cập nhật được cài đặt Claude Code: %@"
           }
         }
       }
@@ -1181,12 +1231,12 @@
         }
       }
     },
-    "Permission requests and questions from Claude Code on this Mac also open in the notch. Claude Code keeps asking as usual, and the first answer wins. Twanotch adds two hooks to ~/.claude/settings.json and keeps the previous file as settings.json.twanotch-backup. Restart running Claude Code sessions to pick up the change." : {
+    "Permission requests and questions from Claude Code on this Mac also open in the notch, and Clawd shows when Claude is working. Claude Code keeps asking as usual, and the first answer wins. Twanotch adds its hooks to ~/.claude/settings.json and keeps the original file as settings.json.twanotch-backup. Restart running Claude Code sessions to pick up the change." : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Yêu cầu quyền và câu hỏi của Claude Code trên máy này cũng hiện trong notch. Claude Code vẫn hỏi như bình thường, câu trả lời nào đến trước thì được dùng. Twanotch thêm hai hook vào ~/.claude/settings.json và giữ bản cũ ở settings.json.twanotch-backup. Khởi động lại các phiên Claude Code đang chạy để áp dụng."
+            "value" : "Yêu cầu quyền và câu hỏi của Claude Code trên máy này cũng hiện trong notch, và Clawd cho biết khi Claude đang làm việc. Claude Code vẫn hỏi như bình thường, câu trả lời nào đến trước thì được dùng. Twanotch thêm hook vào ~/.claude/settings.json và giữ file gốc ở settings.json.twanotch-backup. Khởi động lại các phiên Claude Code đang chạy để áp dụng."
           }
         }
       }
@@ -1217,6 +1267,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gửi"
+          }
+        }
+      }
+    },
+    "this project" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dự án này"
+          }
+        }
+      }
+    },
+    "this session" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "phiên này"
           }
         }
       }
