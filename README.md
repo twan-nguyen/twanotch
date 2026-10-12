@@ -35,7 +35,7 @@ On first launch, allow Twanotch in System Settings > Privacy & Security > Access
 
 ## Claude usage
 
-Needs [Claude Code](https://code.claude.com) installed and signed in. Twanotch reads Claude Code's sign-in from the keychain and never stores it; when it expires, Twanotch runs Claude Code briefly in the background so it can refresh. Turn it on or off in Settings > Claude.
+Needs [Claude Code](https://code.claude.com) installed and signed in. Twanotch asks Claude Code on this Mac for the same figures `/usage` shows, so it never reads your sign-in or connects to Anthropic itself. Turn it on or off in Settings > Claude.
 
 To answer Claude Code from the notch, turn on **Answer Claude Code in the notch** in Settings > Claude. Twanotch adds its hooks to `~/.claude/settings.json` (the original file is kept as `settings.json.twanotch-backup`); restart running Claude Code sessions afterwards. Claude Code still asks as usual, and the first answer wins. With the Claude desktop app installed, Clawd in the notch also shows whether Claude is idle, working or waiting for you.
 
@@ -43,4 +43,4 @@ Before uninstalling Twanotch, turn this off so the hooks are removed, or delete 
 
 ## Credits
 
-Based on [boring.notch](https://github.com/TheBoredTeam/boring.notch) and released under the same [GPL-3.0 license](LICENSE). Also uses [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) and [NotchDrop](https://github.com/Lakr233/NotchDrop), and reads Claude usage the way [CodexBar](https://github.com/steipete/CodexBar) does. See [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
+Based on [boring.notch](https://github.com/TheBoredTeam/boring.notch) and released under the same [GPL-3.0 license](LICENSE). Also uses [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) and [NotchDrop](https://github.com/Lakr233/NotchDrop), and reads Claude usage the way [CodexBar](https://github.com/steipete/CodexBar)'s CLI source does. See [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).

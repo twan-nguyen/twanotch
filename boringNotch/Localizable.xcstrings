@@ -1151,6 +1151,26 @@
         }
       }
     },
+    "Claude Code did not report any usage" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code không báo về mức dùng nào"
+          }
+        }
+      }
+    },
+    "Claude Code not found" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không tìm thấy Claude Code"
+          }
+        }
+      }
+    },
     "Claude Code settings" : {
       "localizations" : {
         "vi" : {
@@ -1221,6 +1241,16 @@
         }
       }
     },
+    "Install Claude Code and sign in; Twanotch reads usage through it." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cài Claude Code và đăng nhập; Twanotch đọc mức dùng qua Claude Code."
+          }
+        }
+      }
+    },
     "Next" : {
       "localizations" : {
         "vi" : {
@@ -1271,6 +1301,16 @@
         }
       }
     },
+    "Shows your Claude plan limits as Claude Code's /usage reports them. Twanotch asks Claude Code on this Mac for them, so it never reads your sign-in or connects to Anthropic itself." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện hạn mức gói Claude giống lệnh /usage của Claude Code. Twanotch hỏi Claude Code trên máy này, nên không bao giờ đọc thông tin đăng nhập của bạn hay tự kết nối tới Anthropic."
+          }
+        }
+      }
+    },
     "this project" : {
       "localizations" : {
         "vi" : {
@@ -1307,6 +1347,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "muốn dùng %@"
+          }
+        }
+      }
+    },
+    "Weekly · %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuần · %@"
           }
         }
       }
@@ -25671,26 +25721,6 @@
         }
       }
     },
-    "Weekly · Sonnet" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tuần · Sonnet"
-          }
-        }
-      }
-    },
-    "Weekly · Opus" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tuần · Opus"
-          }
-        }
-      }
-    },
     "Resets in %@" : {
       "localizations" : {
         "vi" : {
@@ -25741,36 +25771,6 @@
         }
       }
     },
-    "Claude Code sign-in expired" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đăng nhập Claude Code đã hết hạn"
-          }
-        }
-      }
-    },
-    "Too many requests" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quá nhiều yêu cầu"
-          }
-        }
-      }
-    },
-    "Claude asked to slow down. Usage will load again in a few minutes." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claude yêu cầu giảm tần suất. Vài phút nữa sẽ tải lại."
-          }
-        }
-      }
-    },
     "Couldn't load Claude usage" : {
       "localizations" : {
         "vi" : {
@@ -25787,26 +25787,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chưa đăng nhập"
-          }
-        }
-      }
-    },
-    "Sign-in expired" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hết hạn đăng nhập"
-          }
-        }
-      }
-    },
-    "Rate limited" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bị giới hạn"
           }
         }
       }
@@ -25871,16 +25851,6 @@
         }
       }
     },
-    "Run claude in Terminal once so it refreshes its sign-in." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chạy claude trong Terminal một lần để nó làm mới đăng nhập."
-          }
-        }
-      }
-    },
     "left" : {
       "localizations" : {
         "vi" : {
@@ -25917,16 +25887,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hiển thị"
-          }
-        }
-      }
-    },
-    "Shows your Claude plan limits, read with the sign-in Claude Code keeps in your keychain. Twanotch never stores or refreshes that token. When it has expired, Twanotch starts Claude Code for a few seconds in the background so Claude Code refreshes it." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hiện hạn mức gói Claude, đọc bằng phiên đăng nhập Claude Code lưu trong Keychain. Twanotch không lưu và không tự làm mới token đó. Khi token hết hạn, Twanotch chạy Claude Code ngầm vài giây để Claude Code tự làm mới."
           }
         }
       }

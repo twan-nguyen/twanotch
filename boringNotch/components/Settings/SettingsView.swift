@@ -954,7 +954,7 @@ struct ClaudeSettings: View {
             } header: {
                 Text("Display")
             } footer: {
-                Text("Shows your Claude plan limits, read with the sign-in Claude Code keeps in your keychain. Twanotch never stores or refreshes that token. When it has expired, Twanotch starts Claude Code for a few seconds in the background so Claude Code refreshes it.")
+                Text("Shows your Claude plan limits as Claude Code's /usage reports them. Twanotch asks Claude Code on this Mac for them, so it never reads your sign-in or connects to Anthropic itself.")
                     .multilineTextAlignment(.trailing)
                     .foregroundStyle(.secondary)
                     .font(.caption)

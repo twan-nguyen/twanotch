@@ -147,8 +147,7 @@ private struct ClaudeUsageCard: View {
         switch window.kind {
         case .session: "5-hour session"
         case .weekly: "Weekly"
-        case .sonnet: "Weekly · Sonnet"
-        case .opus: "Weekly · Opus"
+        case .model(let name): "Weekly · \(name)"
         }
     }
 
@@ -173,27 +172,21 @@ private struct ClaudeUsageProblemView: View {
 
     var body: some View {
         switch problem {
+        case .notInstalled:
+            ClaudeUsageMessage(
+                symbol: "terminal",
+                title: "Claude Code not found",
+                detail: "Install Claude Code and sign in; Twanotch reads usage through it."
+            )
         case .notSignedIn:
             ClaudeUsageMessage(
                 symbol: "person.crop.circle.badge.questionmark",
                 title: "Not signed in to Claude Code",
                 detail: "Run claude in Terminal and sign in, then come back here."
             )
-        case .expired:
-            ClaudeUsageMessage(
-                symbol: "clock.badge.exclamationmark",
-                title: "Claude Code sign-in expired",
-                detail: "Run claude in Terminal once so it refreshes its sign-in."
-            )
-        case .rateLimited:
-            ClaudeUsageMessage(
-                symbol: "hourglass",
-                title: "Too many requests",
-                detail: "Claude asked to slow down. Usage will load again in a few minutes."
-            )
         case .unavailable(let message):
             ClaudeUsageMessage(
-                symbol: "wifi.exclamationmark",
+                symbol: "exclamationmark.triangle",
                 title: "Couldn't load Claude usage",
                 detail: LocalizedStringKey(message)
             )
@@ -230,9 +223,8 @@ private struct ClaudeUsageMessage: View {
 extension ClaudeUsageProblem {
     var shortTitle: LocalizedStringKey {
         switch self {
+        case .notInstalled: "Claude Code not found"
         case .notSignedIn: "Not signed in"
-        case .expired: "Sign-in expired"
-        case .rateLimited: "Rate limited"
         case .unavailable: "Unavailable"
         }
     }
