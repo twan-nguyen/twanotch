@@ -18893,118 +18893,118 @@
         }
       }
     },
-    "Restart TwaNotch" : {
+    "Restart Twanotch" : {
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Restart TwaNotch"
+            "value" : "Restart Twanotch"
           }
         },
         "cs" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Restartovat TwaNotch"
+            "value" : "Restartovat Twanotch"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch neu starten"
+            "value" : "Twanotch neu starten"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Restart TwaNotch"
+            "value" : "Restart Twanotch"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Restart TwaNotch"
+            "value" : "Restart Twanotch"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Reiniciar TwaNotch"
+            "value" : "Reiniciar Twanotch"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Redémarrer TwaNotch"
+            "value" : "Redémarrer Twanotch"
           }
         },
         "hu" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Restart TwaNotch"
+            "value" : "Restart Twanotch"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Riavvia TwaNotch"
+            "value" : "Riavvia Twanotch"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch 재시작"
+            "value" : "Twanotch 재시작"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Uruchom ponownie TwaNotch"
+            "value" : "Uruchom ponownie Twanotch"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Restart TwaNotch"
+            "value" : "Restart Twanotch"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Restart TwaNotch"
+            "value" : "Restart Twanotch"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch'u yeniden başlat"
+            "value" : "Twanotch'u yeniden başlat"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Restart TwaNotch"
+            "value" : "Restart Twanotch"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "重启 TwaNotch"
+            "value" : "重启 Twanotch"
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Khởi động lại TwaNotch"
+            "value" : "Khởi động lại Twanotch"
           }
         }
       }
     },
-    "Restart TwaNotch now to apply the new language?" : {
+    "Restart Twanotch now to apply the new language?" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Khởi động lại TwaNotch ngay để áp dụng ngôn ngữ mới?"
+            "value" : "Khởi động lại Twanotch ngay để áp dụng ngôn ngữ mới?"
           }
         }
       }
@@ -22830,128 +22830,128 @@
         }
       }
     },
-    "TwaNotch" : {
+    "Twanotch" : {
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "cs" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "hu" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TwaNotch"
+            "value" : "Twanotch"
           }
         }
       }
     },
-    "TwaNotch by Twan · based on boring.notch by TheBoredTeam" : {
+    "Twanotch by Twan · based on boring.notch by TheBoredTeam" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TwaNotch của Twan · dựa trên boring.notch của TheBoredTeam"
+            "value" : "Twanotch của Twan · dựa trên boring.notch của TheBoredTeam"
           }
         }
       }
     },
-    "TwaNotch restarts to apply the new language." : {
+    "Twanotch restarts to apply the new language." : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TwaNotch sẽ khởi động lại để áp dụng ngôn ngữ mới."
+            "value" : "Twanotch sẽ khởi động lại để áp dụng ngôn ngữ mới."
           }
         }
       }
@@ -25091,12 +25091,12 @@
         }
       }
     },
-    "TwaNotch Settings" : {
+    "Twanotch Settings" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cài đặt TwaNotch"
+            "value" : "Cài đặt Twanotch"
           }
         }
       }
@@ -25111,12 +25111,12 @@
         }
       }
     },
-    "TwaNotch includes a mirror feature that lets you quickly check your appearance using your camera, right from the notch. Camera access is required only to show this live preview. You can turn the mirror feature on or off at any time in the app." : {
+    "Twanotch includes a mirror feature that lets you quickly check your appearance using your camera, right from the notch. Camera access is required only to show this live preview. You can turn the mirror feature on or off at any time in the app." : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TwaNotch có tính năng gương giúp bạn nhanh chóng xem lại diện mạo bằng camera ngay từ notch. Quyền truy cập camera chỉ cần để hiển thị bản xem trước trực tiếp này. Bạn có thể bật hoặc tắt tính năng gương bất cứ lúc nào trong ứng dụng."
+            "value" : "Twanotch có tính năng gương giúp bạn nhanh chóng xem lại diện mạo bằng camera ngay từ notch. Quyền truy cập camera chỉ cần để hiển thị bản xem trước trực tiếp này. Bạn có thể bật hoặc tắt tính năng gương bất cứ lúc nào trong ứng dụng."
           }
         }
       }
@@ -25141,12 +25141,12 @@
         }
       }
     },
-    "TwaNotch can show all your upcoming events in one place. Access to your calendar is needed to display your schedule." : {
+    "Twanotch can show all your upcoming events in one place. Access to your calendar is needed to display your schedule." : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TwaNotch có thể hiển thị mọi sự kiện sắp tới của bạn ở một nơi. Cần quyền truy cập Lịch để hiển thị lịch trình của bạn."
+            "value" : "Twanotch có thể hiển thị mọi sự kiện sắp tới của bạn ở một nơi. Cần quyền truy cập Lịch để hiển thị lịch trình của bạn."
           }
         }
       }
@@ -25171,12 +25171,12 @@
         }
       }
     },
-    "TwaNotch can show your scheduled reminders alongside your calendar events. Access to Reminders is needed to display your reminders." : {
+    "Twanotch can show your scheduled reminders alongside your calendar events. Access to Reminders is needed to display your reminders." : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TwaNotch có thể hiển thị các lời nhắc đã lên lịch cùng với sự kiện lịch của bạn. Cần quyền truy cập Lời nhắc để hiển thị chúng."
+            "value" : "Twanotch có thể hiển thị các lời nhắc đã lên lịch cùng với sự kiện lịch của bạn. Cần quyền truy cập Lời nhắc để hiển thị chúng."
           }
         }
       }
@@ -25201,12 +25201,12 @@
         }
       }
     },
-    "Accessibility access is required to replace system notifications with the TwaNotch HUD. This allows the app to intercept media and brightness events to display custom HUD overlays." : {
+    "Accessibility access is required to replace system notifications with the Twanotch HUD. This allows the app to intercept media and brightness events to display custom HUD overlays." : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cần quyền Trợ năng để thay thế thông báo hệ thống bằng HUD của TwaNotch. Quyền này cho phép ứng dụng bắt các sự kiện phím media và độ sáng để hiển thị lớp phủ HUD tùy chỉnh."
+            "value" : "Cần quyền Trợ năng để thay thế thông báo hệ thống bằng HUD của Twanotch. Quyền này cho phép ứng dụng bắt các sự kiện phím media và độ sáng để hiển thị lớp phủ HUD tùy chỉnh."
           }
         }
       }

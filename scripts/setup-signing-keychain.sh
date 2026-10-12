@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time setup: puts the TwaNotch signing identity in its own keychain so codesign can use it
+# One-time setup: puts the Twanotch signing identity in its own keychain so codesign can use it
 # without keychain prompts. The keychain password is random and kept in the login keychain,
 # where scripts/install.sh reads it.
 # Usage: scripts/setup-signing-keychain.sh <identity.p12>

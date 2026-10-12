@@ -120,7 +120,7 @@ struct SettingsSidebarHeader: View {
                 .resizable()
                 .frame(width: 38, height: 38)
             VStack(alignment: .leading, spacing: 1) {
-                Text("TwaNotch")
+                Text("Twanotch")
                     .font(.headline)
                 Text("Version \(Bundle.main.releaseVersionNumber ?? "")")
                     .font(.caption)

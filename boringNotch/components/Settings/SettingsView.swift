@@ -149,9 +149,9 @@ struct GeneralSettings: View {
             } header: {
                 Text("Language")
             } footer: {
-                Text("TwaNotch restarts to apply the new language.")
+                Text("Twanotch restarts to apply the new language.")
             }
-            .alert("Restart TwaNotch now to apply the new language?", isPresented: $showLanguageRestartAlert) {
+            .alert("Restart Twanotch now to apply the new language?", isPresented: $showLanguageRestartAlert) {
                 Button("Restart now") { ApplicationRelauncher.restart() }
                 Button("Later", role: .cancel) {}
             }
@@ -915,7 +915,7 @@ struct About: View {
             }
             VStack(spacing: 0) {
                 Divider()
-                Text("TwaNotch by Twan · based on boring.notch by TheBoredTeam")
+                Text("Twanotch by Twan · based on boring.notch by TheBoredTeam")
                     .foregroundStyle(.secondary)
                     .padding(.top, 5)
                     .padding(.bottom, 7)

@@ -30,7 +30,7 @@ struct DynamicNotchApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("TwaNotch", systemImage: "sparkle", isInserted: $showMenuBarIcon) {
+        MenuBarExtra("Twanotch", systemImage: "sparkle", isInserted: $showMenuBarIcon) {
             Button("Settings") {
                 DispatchQueue.main.async {
                     SettingsWindowController.shared.showWindow()
@@ -39,7 +39,7 @@ struct DynamicNotchApp: App {
             .keyboardShortcut(KeyEquivalent(","), modifiers: .command)
             CheckForUpdatesView(updater: updaterController.updater)
             Divider()
-            Button("Restart TwaNotch") {
+            Button("Restart Twanotch") {
                 ApplicationRelauncher.restart()
             }
             Button("Quit", role: .destructive) {

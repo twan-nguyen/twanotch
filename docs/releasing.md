@@ -1,4 +1,4 @@
-# Phát hành và cài đặt TwaNotch
+# Phát hành và cài đặt Twanotch
 
 Ghi chú vận hành cho chủ repo. Phần tóm tắt bằng tiếng Anh nằm trong [README](../README.md#releasing).
 
@@ -70,7 +70,7 @@ App cài theo cách này dùng chung chữ ký với bản phát hành, nên gi�
 brew install --cask twan-nguyen/tap/twanotch
 ```
 
-- Sau khi cài, bật quyền Accessibility cho TwaNotch một lần trong System Settings > Privacy & Security > Accessibility.
+- Sau khi cài, bật quyền Accessibility cho Twanotch một lần trong System Settings > Privacy & Security > Accessibility.
 - `brew list --versions` vẫn hiện số phiên bản lúc cài, kể cả sau khi Sparkle đã cập nhật app. Đây là hành vi bình thường của cask có `auto_updates`.
 - Gỡ app: `brew uninstall --cask twanotch`. Thêm `--zap` nếu muốn xoá cả cài đặt và dữ liệu.
 

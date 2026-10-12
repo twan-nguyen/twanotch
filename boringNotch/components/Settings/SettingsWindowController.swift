@@ -40,7 +40,7 @@ class SettingsWindowController: NSWindowController {
     private func setupWindow() {
         guard let window = window else { return }
         
-        window.title = String(localized: "TwaNotch Settings")
+        window.title = String(localized: "Twanotch Settings")
         window.titlebarAppearsTransparent = false
         window.titleVisibility = .visible
         window.toolbarStyle = .unified

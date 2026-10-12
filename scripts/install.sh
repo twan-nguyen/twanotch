@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Builds TwaNotch in Release, replaces /Applications/TwaNotch.app and relaunches it.
+# Builds Twanotch in Release, replaces /Applications/TwaNotch.app and relaunches it.
 # Usage: scripts/install.sh
 set -euo pipefail
 
-APP_NAME="TwaNotch"
+APP_NAME="TwaNotch"  # bundle file and process name; the display name is Twanotch
+BUNDLE_ID="com.twan.twanotch"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DERIVED_DATA="$REPO_ROOT/build/DerivedData"
 BUILT_APP="$DERIVED_DATA/Build/Products/Release/$APP_NAME.app"
@@ -41,7 +42,7 @@ fi
 
 if pgrep -x "$APP_NAME" >/dev/null; then
   echo "==> Quitting the running $APP_NAME"
-  osascript -e "quit app \"$APP_NAME\"" || true
+  osascript -e "quit app id \"$BUNDLE_ID\"" || true
   for _ in {1..20}; do
     pgrep -x "$APP_NAME" >/dev/null || break
     sleep 0.5

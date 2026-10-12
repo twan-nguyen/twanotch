@@ -1,8 +1,8 @@
 <h1 align="center">
   <br>
-  <img src="Configuration/branding/twanotch-icon.svg" alt="TwaNotch" width="150">
+  <img src="Configuration/branding/twanotch-icon.svg" alt="Twanotch" width="150">
   <br>
-  TwaNotch
+  Twanotch
   <br>
 </h1>
 
@@ -68,7 +68,7 @@ To build Release and install it, run:
 scripts/install.sh
 ```
 
-The script builds into `build/DerivedData`, signs the app, quits the running TwaNotch, replaces `/Applications/TwaNotch.app` and launches the new copy.
+The script builds into `build/DerivedData`, signs the app, quits the running Twanotch, replaces `/Applications/TwaNotch.app` and launches the new copy.
 
 ### Signing
 
@@ -121,4 +121,4 @@ The app icon source is [Configuration/branding/twanotch-icon.svg](Configuration/
 
 ## Credits and license
 
-TwaNotch is based on [boring.notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam and its contributors, and is distributed under the same [GPL-3.0 license](LICENSE). It also builds on [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) and [NotchDrop](https://github.com/Lakr233/NotchDrop); see [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) for all attributions.
+Twanotch is based on [boring.notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam and its contributors, and is distributed under the same [GPL-3.0 license](LICENSE). It also builds on [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) and [NotchDrop](https://github.com/Lakr233/NotchDrop); see [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) for all attributions.

@@ -18,6 +18,7 @@ jobs:
     runs-on: macos-latest
     env:
       APP_NAME: TwaNotch
+      DISPLAY_NAME: Twanotch
       SIGN_IDENTITY: TwaNotch Self-Signed
       TAP_REPOSITORY: twan-nguyen/homebrew-tap
       # GitHub's published SSH host key, so the tap push never trusts an unknown host.
@@ -117,7 +118,7 @@ jobs:
             "$DIST/$ZIP_NAME" \
             "$DIST/appcast.xml" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "$APP_NAME $VERSION" \
+            --title "$DISPLAY_NAME $VERSION" \
             --generate-notes \
             --verify-tag
 
@@ -141,7 +142,7 @@ jobs:
             sha256 "$SHA256"
 
             url "https://github.com/$GITHUB_REPOSITORY/releases/download/v#{version}/$APP_NAME-#{version}.zip"
-            name "$APP_NAME"
+            name "$DISPLAY_NAME"
             desc "Music, calendar, file shelf and HUD hub for the notch"
             homepage "https://github.com/$GITHUB_REPOSITORY"
 
