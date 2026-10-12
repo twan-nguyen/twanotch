@@ -199,6 +199,14 @@ class BoringViewModel: NSObject, ObservableObject {
     }
 
     func open() {
+        // Opening from the default tab shows Claude usage while nothing is playing; music keeps Home.
+        if coordinator.openNotchIDs.isEmpty && !coordinator.openLastTabByDefault
+            && coordinator.currentView == .home && Defaults[.showClaudeUsage]
+            && !MusicManager.shared.isPlaying
+        {
+            coordinator.currentView = .claude
+        }
+
         self.notchSize = openNotchSize
         self.notchState = .open
         coordinator.openNotchIDs.insert(ObjectIdentifier(self))
