@@ -886,9 +886,12 @@ struct About: View {
                             showBuildNumber.toggle()
                         }
                     }
+                    CheckForUpdatesView(updater: updaterController.updater)
                 } header: {
                     Text("Version info")
                 }
+
+                UpdaterSettingsView(updater: updaterController.updater)
 
                 HStack(spacing: 30) {
                     Spacer(minLength: 0)

@@ -21,9 +21,9 @@ struct DynamicNotchApp: App {
     let updaterController: SPUStandardUpdaterController
 
     init() {
-        // Personal build: keep Sparkle stopped so upstream releases never replace this fork.
+        // Updates come from this fork's own appcast (SUFeedURL), signed with its own EdDSA key.
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+            startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
         // Initialize the settings window controller with the updater controller
         SettingsWindowController.shared.setUpdaterController(updaterController)
@@ -37,6 +37,7 @@ struct DynamicNotchApp: App {
                 }
             }
             .keyboardShortcut(KeyEquivalent(","), modifiers: .command)
+            CheckForUpdatesView(updater: updaterController.updater)
             Divider()
             Button("Restart TwaNotch") {
                 ApplicationRelauncher.restart()

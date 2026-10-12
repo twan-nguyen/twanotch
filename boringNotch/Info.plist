@@ -7,6 +7,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/twan-nguyen/twanotch/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>NHYJMemmZYIbqzxeDaYf5T3nyPT7CcSF3zR106YtiG4=</string>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict/>
