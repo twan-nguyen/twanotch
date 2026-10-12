@@ -49,6 +49,11 @@ class MusicManager: ObservableObject {
     @Published var volumeControlSupported: Bool = true
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @Published var usingAppIconForArtwork: Bool = false
+
+    /// True once the media source reports nothing at all, for example after the player app quits.
+    var hasNoMediaSource: Bool {
+        songTitle.isEmpty && (bundleIdentifier ?? "").isEmpty
+    }
     @Published var currentLyrics: String = ""
     @Published var isFetchingLyrics: Bool = false
     @Published var syncedLyrics: [(time: Double, text: String)] = []
@@ -225,6 +230,10 @@ class MusicManager: ObservableObject {
                 if let appIconImage = AppIconAsNSImage(for: state.bundleIdentifier) {
                     self.usingAppIconForArtwork = true
                     self.updateAlbumArt(newAlbumArt: appIconImage)
+                } else {
+                    // No source app any more (it quit), so drop the previous track's artwork.
+                    self.usingAppIconForArtwork = false
+                    self.updateAlbumArt(newAlbumArt: defaultImage)
                 }
             }
             self.artworkData = state.artwork

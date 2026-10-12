@@ -25330,6 +25330,16 @@
           }
         }
       }
+    },
+    "Not playing" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa phát nhạc"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

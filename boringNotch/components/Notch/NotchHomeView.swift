@@ -76,29 +76,55 @@ struct AlbumArtView: View {
         Rectangle()
             .aspectRatio(1, contentMode: .fit)
             .foregroundColor(Color.black)
-            .opacity(musicManager.isPlaying ? 0 : 0.8)
+            // The paused dimming would hide the empty-state skeleton.
+            .opacity(musicManager.isPlaying || musicManager.hasNoMediaSource ? 0 : 0.8)
             .blur(radius: 50)
     }
                 
 
+    @ViewBuilder
     private var albumArtImage: some View {
+        if musicManager.hasNoMediaSource {
+            emptyAlbumArt
+        } else {
+            loadedAlbumArt
+        }
+    }
+
+    private var albumArtCornerRadius: CGFloat {
+        Defaults[.cornerRadiusScaling]
+            ? MusicPlayerImageSizes.cornerRadiusInset.opened
+            : MusicPlayerImageSizes.cornerRadiusInset.closed
+    }
+
+    private var emptyAlbumArt: some View {
+        ShimmerSkeleton(cornerRadius: albumArtCornerRadius)
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                Image(systemName: "music.note")
+                    .font(.system(size: 30, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.25))
+            }
+            .matchedGeometryEffect(id: "albumArt", in: albumArtNamespace)
+            .accessibilityElement()
+            .accessibilityLabel("Not playing")
+    }
+
+    private var loadedAlbumArt: some View {
         Image(nsImage: musicManager.albumArt)
             .resizable()
             .aspectRatio(1, contentMode: .fit)
             .matchedGeometryEffect(id: "albumArt", in: albumArtNamespace)
             .clipped()
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: Defaults[.cornerRadiusScaling]
-                        ? MusicPlayerImageSizes.cornerRadiusInset.opened
-                        : MusicPlayerImageSizes.cornerRadiusInset.closed)
-            )
+            .clipShape(RoundedRectangle(cornerRadius: albumArtCornerRadius))
     }
 
     @ViewBuilder
     private var appIconOverlay: some View {
-        if vm.notchState == .open && !musicManager.usingAppIconForArtwork {
-            AppIcon(for: musicManager.bundleIdentifier ?? "com.apple.Music")
+        // Without a source app there is no icon to show, only a generic placeholder.
+        if vm.notchState == .open && !musicManager.usingAppIconForArtwork,
+           let bundleIdentifier = musicManager.bundleIdentifier, !bundleIdentifier.isEmpty {
+            AppIcon(for: bundleIdentifier)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 30, height: 30)
@@ -138,7 +164,23 @@ struct MusicControlsView: View {
         .padding(.leading, 5)
     }
 
+    @ViewBuilder
     private func songInfo(width: CGFloat) -> some View {
+        if musicManager.hasNoMediaSource {
+            // Same height as the title and artist lines, so the slider stays where it is.
+            VStack(alignment: .leading, spacing: 8) {
+                ShimmerSkeleton().frame(width: width * 0.7, height: 13)
+                ShimmerSkeleton().frame(width: width * 0.42, height: 11)
+            }
+            .frame(height: 40, alignment: .leading)
+            .accessibilityElement()
+            .accessibilityLabel("Not playing")
+        } else {
+            trackInfo(width: width)
+        }
+    }
+
+    private func trackInfo(width: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             MarqueeText(
                 $musicManager.songTitle, font: .headline, nsFont: .headline, textColor: .white,
@@ -574,5 +616,35 @@ struct CustomSlider: View {
             )
             .animation(.spring(response: 0.35, dampingFraction: 0.7), value: dragging)
         }
+    }
+}
+
+/// A placeholder block with a soft highlight sweeping across it, shown while there is no track.
+struct ShimmerSkeleton: View {
+    var cornerRadius: CGFloat = 6
+    @State private var phase: CGFloat = 0
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(Color.white.opacity(0.08))
+            .overlay {
+                GeometryReader { geo in
+                    let bandWidth = geo.size.width * 0.6
+                    LinearGradient(
+                        colors: [.clear, Color.white.opacity(0.12), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: bandWidth)
+                    // Sweep from fully left of the block to fully right of it.
+                    .offset(x: -bandWidth + phase * (geo.size.width + bandWidth))
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .onAppear {
+                withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
     }
 }
