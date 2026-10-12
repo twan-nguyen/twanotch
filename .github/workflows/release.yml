@@ -1,0 +1,184 @@
+name: Release
+
+# Push a tag such as v1.0.1 to build, sign and publish that version, refresh the Sparkle
+# appcast and point the Homebrew cask in twan-nguyen/homebrew-tap at it.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    env:
+      APP_NAME: TwaNotch
+      SIGN_IDENTITY: TwaNotch Self-Signed
+      TAP_REPOSITORY: twan-nguyen/homebrew-tap
+      # GitHub's published SSH host key, so the tap push never trusts an unknown host.
+      GITHUB_SSH_HOST_KEY: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Select Xcode 26
+        run: |
+          XCODE_PATH="$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+          [[ -n "$XCODE_PATH" ]] || { echo "::error::No Xcode 26 on this runner"; ls -d /Applications/Xcode*.app; exit 1; }
+          sudo xcode-select -s "$XCODE_PATH"
+          xcodebuild -version
+
+      - name: Resolve version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Tag must look like v1.2.3"; exit 1; }
+          # Sparkle compares CFBundleVersion, so it must grow with every release.
+          BUILD_NUMBER="$(git rev-list --count HEAD)"
+          {
+            echo "VERSION=$VERSION"
+            echo "BUILD_NUMBER=$BUILD_NUMBER"
+            echo "DERIVED_DATA=$RUNNER_TEMP/DerivedData"
+            echo "DIST=$RUNNER_TEMP/dist"
+            echo "APP_PATH=$RUNNER_TEMP/DerivedData/Build/Products/Release/$APP_NAME.app"
+          } >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          xcodebuild \
+            -project boringNotch.xcodeproj \
+            -scheme boringNotch \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            -derivedDataPath "$DERIVED_DATA" \
+            -quiet \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+            build
+          test -d "$APP_PATH"
+
+      - name: Sign
+        env:
+          SIGNING_CERT_P12_BASE64: ${{ secrets.SIGNING_CERT_P12_BASE64 }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          P12="$RUNNER_TEMP/identity.p12"
+          printf '%s' "$SIGNING_CERT_P12_BASE64" | base64 --decode > "$P12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$P12" -k "$KEYCHAIN" -P "$SIGNING_CERT_PASSWORD" -T /usr/bin/codesign >/dev/null
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          rm -f "$P12"
+          scripts/sign-app.sh "$APP_PATH" "$SIGN_IDENTITY" "$KEYCHAIN"
+          security delete-keychain "$KEYCHAIN"
+          plutil -extract CFBundleShortVersionString raw "$APP_PATH/Contents/Info.plist"
+          plutil -extract CFBundleVersion raw "$APP_PATH/Contents/Info.plist"
+
+      - name: Package
+        run: |
+          mkdir -p "$DIST"
+          ZIP_NAME="$APP_NAME-$VERSION.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$DIST/$ZIP_NAME"
+          echo "ZIP_NAME=$ZIP_NAME" >> "$GITHUB_ENV"
+          echo "SHA256=$(shasum -a 256 "$DIST/$ZIP_NAME" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Generate appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          GENERATE_APPCAST="$DERIVED_DATA/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+          test -x "$GENERATE_APPCAST"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | "$GENERATE_APPCAST" \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
+            --full-release-notes-url "https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME" \
+            --link "https://github.com/$GITHUB_REPOSITORY" \
+            --maximum-deltas 0 \
+            "$DIST"
+          grep -q 'sparkle:edSignature' "$DIST/appcast.xml"
+          cat "$DIST/appcast.xml"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The app reads releases/latest/download/appcast.xml, so each release carries its own.
+          gh release create "$GITHUB_REF_NAME" \
+            "$DIST/$ZIP_NAME" \
+            "$DIST/appcast.xml" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$APP_NAME $VERSION" \
+            --generate-notes \
+            --verify-tag
+
+      - name: Update Homebrew cask
+        env:
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
+        run: |
+          KEY_FILE="$RUNNER_TEMP/tap_deploy_key"
+          KNOWN_HOSTS="$RUNNER_TEMP/known_hosts"
+          printf '%s\n' "$TAP_DEPLOY_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          printf '%s\n' "$GITHUB_SSH_HOST_KEY" > "$KNOWN_HOSTS"
+          export GIT_SSH_COMMAND="ssh -i $KEY_FILE -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS"
+
+          TAP_DIR="$RUNNER_TEMP/tap"
+          git clone "git@github.com:$TAP_REPOSITORY.git" "$TAP_DIR"
+          mkdir -p "$TAP_DIR/Casks"
+          cat > "$TAP_DIR/Casks/twanotch.rb" <<CASK
+          cask "twanotch" do
+            version "$VERSION"
+            sha256 "$SHA256"
+
+            url "https://github.com/$GITHUB_REPOSITORY/releases/download/v#{version}/$APP_NAME-#{version}.zip"
+            name "$APP_NAME"
+            desc "Music, calendar, file shelf and HUD hub for the notch"
+            homepage "https://github.com/$GITHUB_REPOSITORY"
+
+            livecheck do
+              url :url
+              strategy :github_latest
+            end
+
+            auto_updates true
+            depends_on macos: :sonoma
+
+            app "$APP_NAME.app"
+
+            # Self-signed and not notarized: clear the download quarantine so Gatekeeper lets it open.
+            postflight do
+              system_command "/usr/bin/xattr",
+                             args: ["-dr", "com.apple.quarantine", "#{appdir}/$APP_NAME.app"]
+            end
+
+            uninstall quit: "com.twan.twanotch"
+
+            zap trash: [
+              "~/Library/Application Scripts/com.twan.twanotch",
+              "~/Library/Containers/com.twan.twanotch",
+            ]
+          end
+          CASK
+          cat "$TAP_DIR/Casks/twanotch.rb"
+
+          cd "$TAP_DIR"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/twanotch.rb
+          if git diff --cached --quiet; then
+            echo "Cask already at $VERSION"
+          else
+            git commit -m "twanotch $VERSION"
+            git push origin HEAD:main
+          fi
+          rm -f "$KEY_FILE"
