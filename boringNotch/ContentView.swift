@@ -24,6 +24,7 @@ struct ContentView: View {
     @ObservedObject var hardware = HardwareCapabilities.shared
     @ObservedObject var brightnessManager = BrightnessManager.shared
     @ObservedObject var volumeManager = VolumeManager.shared
+    @ObservedObject var claudeUsage = ClaudeUsageManager.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var anyDropDebounceTask: Task<Void, Never>?
@@ -37,6 +38,7 @@ struct ContentView: View {
     @Default(.useMusicVisualizer) var useMusicVisualizer
 
     @Default(.showNotHumanFace) var showNotHumanFace
+    @Default(.showClaudeInClosedNotch) var showClaudeInClosedNotch
 
     // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
@@ -72,6 +74,11 @@ struct ContentView: View {
             && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed
         {
             chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
+            if closedNotchClaudeSession != nil {
+                chinWidth += 2 * (claudeBadgeWidth + 8)
+            }
+        } else if showsClaudeActivity {
+            chinWidth += 2 * claudeSideWidth + 20
         } else if !coordinator.expandingView.show && vm.notchState == .closed
             && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace]
             && !vm.hideOnClosed
@@ -80,6 +87,23 @@ struct ContentView: View {
         }
 
         return chinWidth
+    }
+
+    /// The Claude 5-hour session shown beside the closed notch, once it has loaded.
+    private var closedNotchClaudeSession: ClaudeUsageWindow? {
+        showClaudeInClosedNotch ? claudeUsage.session : nil
+    }
+
+    /// Width of each side the Claude session takes beside the closed notch when it has it alone.
+    private let claudeSideWidth: CGFloat = 32
+    /// Width of the mascot-and-percentage badge at the left of the music activity.
+    private let claudeBadgeWidth: CGFloat = 50
+
+    /// With no music, the Claude session gets the closed notch to itself.
+    private var showsClaudeActivity: Bool {
+        !coordinator.expandingView.show && vm.notchState == .closed
+            && !musicManager.isPlaying && musicManager.isPlayerIdle
+            && closedNotchClaudeSession != nil && !vm.hideOnClosed
     }
 
     var body: some View {
@@ -293,6 +317,8 @@ struct ContentView: View {
                       } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
                           MusicLiveActivity()
                               .frame(alignment: .center)
+                      } else if showsClaudeActivity, let session = closedNotchClaudeSession {
+                          ClaudeLiveActivity(session: session)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {
@@ -354,6 +380,8 @@ struct ContentView: View {
                         NotchHomeView(albumArtNamespace: albumArtNamespace)
                     case .shelf:
                         ShelfView()
+                    case .claude:
+                        ClaudeUsageView()
                     }
                 }
                 .transition(
@@ -391,8 +419,31 @@ struct ContentView: View {
     }
 
     @ViewBuilder
+    func ClaudeLiveActivity(session: ClaudeUsageWindow) -> some View {
+        HStack {
+            ClaudeMascot()
+                .fill(ClaudeMascot.tint)
+                .frame(width: 16, height: 11)
+                .frame(width: claudeSideWidth)
+            Rectangle()
+                .fill(.black)
+                .frame(width: vm.closedNotchSize.width - 20)
+            ClaudeClosedNotchPercent(window: session)
+                .frame(width: claudeSideWidth)
+        }
+        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+    }
+
+    @ViewBuilder
     func MusicLiveActivity() -> some View {
         HStack {
+            // The Claude badge sits on the far left; a matching blank on the far right keeps the
+            // black area centered on the physical notch.
+            if let session = closedNotchClaudeSession {
+                ClaudeClosedNotchBadge(window: session)
+                    .frame(width: claudeBadgeWidth, alignment: .leading)
+            }
+
             Image(nsImage: musicManager.albumArt)
                 .resizable()
                 .clipped()
@@ -484,6 +535,11 @@ struct ContentView: View {
                 ),
                 alignment: .center
             )
+
+            if closedNotchClaudeSession != nil {
+                Color.clear
+                    .frame(width: claudeBadgeWidth)
+            }
         }
         .frame(
             height: vm.effectiveClosedNotchHeight,

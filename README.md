@@ -16,6 +16,7 @@
 - Charging indicator and battery percentage.
 - File shelf with AirDrop and quick share.
 - System HUD replacement for volume, brightness and keyboard backlight.
+- Claude tab with your Claude plan limits (5-hour session, weekly and per-model weekly) and when each resets; the 5-hour session also shows beside the closed notch. It reads the sign-in Claude Code keeps in the keychain, so Claude Code must be signed in; Twanotch never stores or refreshes that token. When the token has expired, Twanotch starts Claude Code for a few seconds in the background, with hooks and MCP servers off, so Claude Code refreshes it. Configure it in Settings > Claude.
 - English and Vietnamese interface.
 
 ## How it differs from boring.notch
@@ -121,4 +122,4 @@ The app icon source is [Configuration/branding/twanotch-icon.svg](Configuration/
 
 ## Credits and license
 
-Twanotch is based on [boring.notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam and its contributors, and is distributed under the same [GPL-3.0 license](LICENSE). It also builds on [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) and [NotchDrop](https://github.com/Lakr233/NotchDrop); see [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) for all attributions.
+Twanotch is based on [boring.notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam and its contributors, and is distributed under the same [GPL-3.0 license](LICENSE). It also builds on [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) and [NotchDrop](https://github.com/Lakr233/NotchDrop), and the Claude tab follows how [CodexBar](https://github.com/steipete/CodexBar) reads Claude usage; see [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) for all attributions.

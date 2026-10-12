@@ -262,6 +262,24 @@ final class XPCHelperClient: NSObject {
             return false
         }
     }
+    
+    // MARK: - Claude Usage
+    
+    /// The helper's JSON envelope (see ClaudeUsageFetcher), or `nil` when the helper cannot be reached.
+    nonisolated func fetchClaudeUsage() async -> Data? {
+        do {
+            let service = await MainActor.run {
+                ensureRemoteService()
+            }
+            return try await service.withContinuation { service, continuation in
+                service.fetchClaudeUsage { data in
+                    continuation.resume(returning: data)
+                }
+            }
+        } catch {
+            return nil
+        }
+    }
 }
 
 extension Notification.Name {

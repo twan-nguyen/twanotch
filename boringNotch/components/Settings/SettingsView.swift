@@ -91,6 +91,8 @@ struct SettingsView: View {
             Charge()
         case .shelf:
             Shelf()
+        case .claude:
+            ClaudeSettings()
         case .shortcuts:
             Shortcuts()
         case .advanced:
@@ -925,6 +927,68 @@ struct About: View {
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .navigationTitle("About")
+    }
+}
+
+struct ClaudeSettings: View {
+    @ObservedObject private var manager = ClaudeUsageManager.shared
+    @ObservedObject private var coordinator = BoringViewCoordinator.shared
+    @Default(.showClaudeUsage) var showClaudeUsage
+
+    var body: some View {
+        Form {
+            Section {
+                Defaults.Toggle(key: .showClaudeUsage) {
+                    Text("Show Claude tab")
+                }
+                .onChange(of: showClaudeUsage) {
+                    if !showClaudeUsage && coordinator.currentView == .claude {
+                        coordinator.currentView = .home
+                    }
+                }
+                Defaults.Toggle(key: .showClaudeInClosedNotch) {
+                    Text("Show 5-hour session beside the closed notch")
+                }
+            } header: {
+                Text("Display")
+            } footer: {
+                Text("Shows your Claude plan limits, read with the sign-in Claude Code keeps in your keychain. Twanotch never stores or refreshes that token. When it has expired, Twanotch starts Claude Code for a few seconds in the background so Claude Code refreshes it.")
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+
+            Section {
+                LabeledContent("Plan") {
+                    Text(manager.usage?.plan ?? "—")
+                }
+                LabeledContent("Status") {
+                    if let problem = manager.problem {
+                        Text(problem.shortTitle)
+                            .foregroundStyle(.orange)
+                    } else if manager.usage != nil {
+                        Text("Connected")
+                    } else {
+                        Text("—")
+                    }
+                }
+                LabeledContent("Last updated") {
+                    if let lastUpdated = manager.lastUpdated {
+                        Text(lastUpdated, format: .dateTime.hour().minute().second())
+                    } else {
+                        Text("—")
+                    }
+                }
+                Button("Refresh now") {
+                    Task { await manager.refresh(manual: true) }
+                }
+                .disabled(manager.isLoading)
+            } header: {
+                Text("Account")
+            }
+        }
+        .accentColor(.effectiveAccent)
+        .navigationTitle("Claude")
     }
 }
 

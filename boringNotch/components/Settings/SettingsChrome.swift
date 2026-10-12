@@ -8,7 +8,7 @@
 import SwiftUI
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, appearance, media, calendar, hud, battery, shelf, shortcuts, advanced, about
+    case general, appearance, media, calendar, hud, battery, shelf, claude, shortcuts, advanced, about
 
     var id: String { rawValue }
 
@@ -21,6 +21,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .hud: "HUDs"
         case .battery: "Battery"
         case .shelf: "Shelf"
+        case .claude: "Claude"
         case .shortcuts: "Shortcuts"
         case .advanced: "Advanced"
         case .about: "About"
@@ -36,6 +37,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .hud: "Replace the system volume and brightness indicators."
         case .battery: "Battery indicator and charging notifications."
         case .shelf: "Temporary file shelf, AirDrop and quick sharing."
+        case .claude: "Claude plan usage in the notch."
         case .shortcuts: "Keyboard shortcuts for controlling the notch."
         case .advanced: "Accent color, window behavior and extra options."
         case .about: "Version, credits and source code."
@@ -51,6 +53,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .hud: "slider.horizontal.3"
         case .battery: "battery.100.bolt"
         case .shelf: "tray.full.fill"
+        case .claude: ClaudeMascot.tabIcon
         case .shortcuts: "command"
         case .advanced: "wrench.and.screwdriver.fill"
         case .about: "info"
@@ -66,6 +69,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .hud: .blue
         case .battery: .green
         case .shelf: .orange
+        case .claude: ClaudeMascot.tint
         case .shortcuts: Color(white: 0.45)
         case .advanced: .purple
         case .about: .teal
@@ -75,7 +79,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     /// Sidebar grouping, mirroring the section breaks in System Settings.
     static let sidebarGroups: [[SettingsTab]] = [
         [.general, .appearance],
-        [.media, .calendar, .hud, .battery, .shelf],
+        [.media, .calendar, .hud, .battery, .shelf, .claude],
         [.shortcuts, .advanced],
         [.about],
     ]
@@ -92,9 +96,15 @@ struct SettingsIcon: View {
             .fill(color.gradient)
             .frame(width: size, height: size)
             .overlay {
-                Image(systemName: symbol)
-                    .font(.system(size: size * 0.52, weight: .semibold))
-                    .foregroundStyle(.white)
+                if symbol == ClaudeMascot.tabIcon {
+                    ClaudeMascot()
+                        .fill(.white)
+                        .frame(width: size * 0.66, height: size * 0.44)
+                } else {
+                    Image(systemName: symbol)
+                        .font(.system(size: size * 0.52, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
             }
             .shadow(color: .black.opacity(0.12), radius: 0.5, y: 0.5)
     }

@@ -25340,6 +25340,416 @@
           }
         }
       }
+    },
+    "Loading Claude usage" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang tải mức dùng Claude"
+          }
+        }
+      }
+    },
+    "No usage limits reported" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có hạn mức nào"
+          }
+        }
+      }
+    },
+    "Claude did not return any usage windows for this account." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude không trả về hạn mức nào cho tài khoản này."
+          }
+        }
+      }
+    },
+    "Updated %@ ago" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cập nhật %@ trước"
+          }
+        }
+      }
+    },
+    "Refresh" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Làm mới"
+          }
+        }
+      }
+    },
+    "Refresh Claude usage" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Làm mới mức dùng Claude"
+          }
+        }
+      }
+    },
+    "5-hour session" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phiên 5 giờ"
+          }
+        }
+      }
+    },
+    "Weekly" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuần"
+          }
+        }
+      }
+    },
+    "Weekly · Sonnet" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuần · Sonnet"
+          }
+        }
+      }
+    },
+    "Weekly · Opus" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuần · Opus"
+          }
+        }
+      }
+    },
+    "Resets in %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset sau %@"
+          }
+        }
+      }
+    },
+    "Resets %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset %@"
+          }
+        }
+      }
+    },
+    "Not started" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa bắt đầu"
+          }
+        }
+      }
+    },
+    "Not signed in to Claude Code" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa đăng nhập Claude Code"
+          }
+        }
+      }
+    },
+    "Run claude in Terminal and sign in, then come back here." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chạy claude trong Terminal và đăng nhập, rồi quay lại đây."
+          }
+        }
+      }
+    },
+    "Claude Code sign-in expired" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đăng nhập Claude Code đã hết hạn"
+          }
+        }
+      }
+    },
+    "Too many requests" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quá nhiều yêu cầu"
+          }
+        }
+      }
+    },
+    "Claude asked to slow down. Usage will load again in a few minutes." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude yêu cầu giảm tần suất. Vài phút nữa sẽ tải lại."
+          }
+        }
+      }
+    },
+    "Couldn't load Claude usage" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không tải được mức dùng Claude"
+          }
+        }
+      }
+    },
+    "Not signed in" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa đăng nhập"
+          }
+        }
+      }
+    },
+    "Sign-in expired" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hết hạn đăng nhập"
+          }
+        }
+      }
+    },
+    "Rate limited" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bị giới hạn"
+          }
+        }
+      }
+    },
+    "Unavailable" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không tải được"
+          }
+        }
+      }
+    },
+    "Helper unavailable" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không kết nối được helper"
+          }
+        }
+      }
+    },
+    "Unexpected response" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phản hồi không hợp lệ"
+          }
+        }
+      }
+    },
+    "Request failed" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yêu cầu thất bại"
+          }
+        }
+      }
+    },
+    "Show Claude tab" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện tab Claude"
+          }
+        }
+      }
+    },
+    "Claude usage" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mức dùng Claude"
+          }
+        }
+      }
+    },
+    "Run claude in Terminal once so it refreshes its sign-in." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chạy claude trong Terminal một lần để nó làm mới đăng nhập."
+          }
+        }
+      }
+    },
+    "left" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "còn lại"
+          }
+        }
+      }
+    },
+    "Claude plan usage in the notch." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mức dùng gói Claude trong notch."
+          }
+        }
+      }
+    },
+    "Show 5-hour session beside the closed notch" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện phiên 5 giờ cạnh notch khi đóng"
+          }
+        }
+      }
+    },
+    "Display" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiển thị"
+          }
+        }
+      }
+    },
+    "Shows your Claude plan limits, read with the sign-in Claude Code keeps in your keychain. Twanotch never stores or refreshes that token. When it has expired, Twanotch starts Claude Code for a few seconds in the background so Claude Code refreshes it." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiện hạn mức gói Claude, đọc bằng phiên đăng nhập Claude Code lưu trong Keychain. Twanotch không lưu và không tự làm mới token đó. Khi token hết hạn, Twanotch chạy Claude Code ngầm vài giây để Claude Code tự làm mới."
+          }
+        }
+      }
+    },
+    "Plan" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gói"
+          }
+        }
+      }
+    },
+    "Status" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trạng thái"
+          }
+        }
+      }
+    },
+    "Connected" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã kết nối"
+          }
+        }
+      }
+    },
+    "Last updated" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cập nhật lần cuối"
+          }
+        }
+      }
+    },
+    "Refresh now" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Làm mới ngay"
+          }
+        }
+      }
+    },
+    "Account" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tài khoản"
+          }
+        }
+      }
+    },
+    "Claude 5-hour session: %lld%% left" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phiên 5 giờ của Claude: còn %lld%%"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

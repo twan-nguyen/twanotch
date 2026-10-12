@@ -20,5 +20,7 @@ import Foundation
     func isScreenBrightnessAvailable(with reply: @escaping (Bool) -> Void)
     func currentScreenBrightness(with reply: @escaping (NSNumber?) -> Void)
     func setScreenBrightness(_ value: Float, with reply: @escaping (Bool) -> Void)
+    // Claude plan usage, read with Claude Code's keychain token (performed by the helper)
+    func fetchClaudeUsage(with reply: @escaping (Data) -> Void)
 }
 

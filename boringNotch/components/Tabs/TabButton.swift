@@ -15,11 +15,22 @@ struct TabButton: View {
     
     var body: some View {
         Button(action: onClick) {
-            Image(systemName: icon)
+            iconView
                 .padding(.horizontal, 15)
                 .contentShape(Capsule())
         }
         .buttonStyle(PlainButtonStyle())
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        if icon == ClaudeMascot.tabIcon {
+            ClaudeMascot()
+                .fill(selected ? ClaudeMascot.tint : ClaudeMascot.tint.opacity(0.6))
+                .frame(width: 18, height: 12)
+        } else {
+            Image(systemName: icon)
+        }
     }
 }
 
