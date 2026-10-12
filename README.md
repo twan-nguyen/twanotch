@@ -21,10 +21,26 @@
 ## How it differs from boring.notch
 
 - Own bundle identifier (`com.twan.twanotch`), name and icon, so it installs side by side with Boring Notch and keeps separate settings and permissions.
-- Sparkle auto-update is disabled; boring.notch releases can never replace this build. Update by rebuilding from source.
+- Updates come from this repository's own releases through Sparkle, signed with its own key, so boring.notch releases can never replace this build.
 - Hardware-aware: features the Mac cannot drive (battery, display brightness on external monitors, keyboard backlight, mirror without a camera) are hidden, and their keys go back to macOS. On a Mac mini this hides most of them. Toggle it in Settings > General > Hardware.
 - Settings redesigned in the style of macOS System Settings.
 - Vietnamese translation, with a language picker in Settings > General > Language (System default, English, Tiếng Việt). Changing it restarts the app.
+
+## Install
+
+```bash
+brew install --cask twan-nguyen/tap/twanotch
+```
+
+If Homebrew refuses the tap as untrusted, trust it once with `brew trust --tap twan-nguyen/tap` and run the install again.
+
+The app is signed with a self-signed certificate and is not notarized. The cask removes the download quarantine after installing, so Gatekeeper does not block it. If you download the zip from Releases yourself, clear it by hand:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/TwaNotch.app
+```
+
+To update, use **Check for Updates…** in the menu bar icon or in Settings > About. Sparkle downloads the new version, replaces the app and relaunches it. `brew upgrade` leaves the app alone because the cask is marked `auto_updates`.
 
 ## Music sources
 
@@ -44,20 +60,46 @@ cd twanotch
 open boringNotch.xcodeproj
 ```
 
-Select the `boringNotch` scheme and press `Cmd + R`. To install, archive a Release build and copy `TwaNotch.app` into `/Applications`.
+Select the `boringNotch` scheme and press `Cmd + R` to run a debug build.
 
-The project is signed ad hoc by default. Two consequences:
-
-- macOS treats every ad-hoc rebuild as a new app, so Accessibility permission (needed for the HUD replacement) has to be granted again after each rebuild.
-- The app links `MediaRemoteAdapter.framework`, which keeps its original signature. An ad-hoc app cannot load a framework from a different team, so `boringNotch.entitlements` includes `com.apple.security.cs.disable-library-validation`. Without it the app crashes at launch with "different Team IDs".
-
-Selecting your own team under Signing & Capabilities fixes the first point and lets you drop that entitlement.
-
-If macOS blocks the first launch of an unsigned build:
+To build Release and install it, run:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/TwaNotch.app
+scripts/install.sh
 ```
+
+The script builds into `build/DerivedData`, signs the app, quits the running TwaNotch, replaces `/Applications/TwaNotch.app` and launches the new copy.
+
+### Signing
+
+Releases and local installs are signed with the same self-signed certificate, "TwaNotch Self-Signed". No Apple Developer account is involved. Because the identity stays the same from one build to the next, macOS keeps the Accessibility permission (needed for the HUD replacement) across updates and rebuilds.
+
+- The identity lives in its own keychain, `~/Library/Keychains/twanotch-signing.keychain-db`. Its random password is stored in the login keychain under `twanotch-signing-keychain`, so `scripts/install.sh` can unlock it without prompting. To recreate it on another Mac from a `.p12` backup, run `scripts/setup-signing-keychain.sh TwaNotch-Self-Signed.p12`.
+- Without that keychain, `scripts/install.sh` installs the ad-hoc build Xcode produced. macOS then treats every rebuild as a new app and asks for Accessibility again.
+- `scripts/sign-app.sh` re-signs everything inside the bundle (Sparkle, the XPC helper and the frameworks) and keeps each item's entitlements.
+- The app is not signed by an Apple team, and it links `MediaRemoteAdapter.framework`, so `boringNotch.entitlements` includes `com.apple.security.cs.disable-library-validation`. Without it the app crashes at launch with "different Team IDs".
+
+## Releasing
+
+Push a version tag:
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+The [Release workflow](.github/workflows/release.yml) builds a universal Release, signs it, zips it, writes a Sparkle `appcast.xml` signed with the EdDSA key, publishes both on a GitHub release, and updates `Casks/twanotch.rb` in [twan-nguyen/homebrew-tap](https://github.com/twan-nguyen/homebrew-tap). The version comes from the tag, and the build number is the commit count, so it always grows. The app reads its feed from `releases/latest/download/appcast.xml`.
+
+The workflow needs these repository secrets:
+
+| Secret | Contents |
+|---|---|
+| `SIGNING_CERT_P12_BASE64` | The signing identity as a base64 `.p12` |
+| `SIGNING_CERT_PASSWORD` | Password of that `.p12` |
+| `SPARKLE_PRIVATE_KEY` | Sparkle EdDSA private key (also in the login keychain, account `twanotch`) |
+| `TAP_DEPLOY_KEY` | Private SSH key of a write deploy key on the tap repository |
+
+Back up the signing identity and the Sparkle key. Installed copies only accept updates signed with that Sparkle key, and keep their permissions only while the certificate stays the same.
 
 ## Translations
 
