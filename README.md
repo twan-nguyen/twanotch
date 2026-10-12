@@ -99,6 +99,8 @@ The workflow needs these repository secrets:
 | `SPARKLE_PRIVATE_KEY` | Sparkle EdDSA private key (also in the login keychain, account `twanotch`) |
 | `TAP_DEPLOY_KEY` | Private SSH key of a write deploy key on the tap repository |
 
+Step-by-step notes (in Vietnamese), including recovery and troubleshooting, are in [docs/releasing.md](docs/releasing.md).
+
 Back up the signing identity and the Sparkle key. Installed copies only accept updates signed with that Sparkle key, and keep their permissions only while the certificate stays the same.
 
 ## Translations
