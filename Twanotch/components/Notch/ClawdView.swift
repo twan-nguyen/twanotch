@@ -117,6 +117,9 @@ final class ClawdSprites: ObservableObject {
     static let shared = ClawdSprites()
 
     @Published fileprivate private(set) var animations: [ClawdActivity: ClawdAnimation] = [:]
+    @Published fileprivate private(set) var walk: ClawdWalk?
+    /// Played at each end of a walk.
+    @Published fileprivate private(set) var lookAround: ClawdAnimation?
     private var loading = false
 
     private init() {}
@@ -141,6 +144,8 @@ final class ClawdSprites: ObservableObject {
                 animations[activity] = ClawdAnimation(names.compactMap(sprite))
             }
             self.animations = animations
+            walk = sprite("Walking").flatMap(ClawdWalk.init)
+            lookAround = sprite("LookingAround").flatMap { ClawdAnimation([$0]) }
         }
     }
 }
@@ -150,13 +155,21 @@ struct ClawdView: View {
     /// The box Clawd is fitted into, keeping square pixels.
     let size: CGSize
     @ObservedObject private var sprites = ClawdSprites.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             if let animation = sprites.animations[activity] ?? sprites.animations[.idle] {
-                TimelineView(.periodic(from: .now, by: 1.0 / 12)) { context in
+                if reduceMotion {
+                    // A still first frame, so Clawd keeps its look without moving.
                     Canvas { canvas, canvasSize in
-                        draw(animation, at: context.date.timeIntervalSinceReferenceDate, in: canvas, size: canvasSize)
+                        draw(animation, at: 0, in: canvas, size: canvasSize)
+                    }
+                } else {
+                    TimelineView(.periodic(from: .now, by: 1.0 / 12)) { context in
+                        Canvas { canvas, canvasSize in
+                            draw(animation, at: context.date.timeIntervalSinceReferenceDate, in: canvas, size: canvasSize)
+                        }
                     }
                 }
             } else {
@@ -191,6 +204,115 @@ struct ClawdView: View {
         case .idle: Text("Claude is idle")
         case .working: Text("Claude is working")
         case .waiting: Text("Claude is waiting for your answer")
+        }
+    }
+}
+
+/// The Walking sprite cut into its parts: turning to the side, the steps facing right, and turning
+/// back to the front. The side view is told apart by the shading on Clawd's back.
+private struct ClawdWalk {
+    typealias Frame = [ClawdSprite.Run]
+
+    let sprite: ClawdSprite
+    let intro: [Frame]
+    let steps: [Frame]
+    let outro: [Frame]
+
+    init?(_ sprite: ClawdSprite) {
+        let side = sprite.frames.indices.filter { index in sprite.frames[index].contains { $0.color == 1 } }
+        guard let first = side.first, let last = side.last else { return nil }
+        self.sprite = sprite
+        intro = Array(sprite.frames[..<first])
+        steps = Array(sprite.frames[first...last])
+        outro = Array(sprite.frames[(last + 1)...])
+    }
+}
+
+/// Clawd walking back and forth across `width`, looking around at each end; with Reduce Motion,
+/// or without the desktop app's sprites, Clawd stands still at the start.
+struct ClawdWalker: View {
+    let width: CGFloat
+    /// Height of the sprites' tallest pose, which fixes Clawd's size.
+    let height: CGFloat
+    @ObservedObject private var sprites = ClawdSprites.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Points a second.
+    private let speed: CGFloat = 10
+
+    var body: some View {
+        Group {
+            if !reduceMotion, let walk = sprites.walk, let look = sprites.lookAround {
+                TimelineView(.periodic(from: .now, by: 1.0 / 24)) { context in
+                    Canvas { canvas, size in
+                        let scale = size.height / walk.sprite.bounds.height
+                        let pose = pose(walk: walk, look: look, scale: scale,
+                                        at: context.date.timeIntervalSinceReferenceDate)
+                        draw(pose, scale: scale, in: canvas, size: size)
+                    }
+                }
+            } else {
+                ClawdView(activity: .idle, size: CGSize(width: height * 4 / 3, height: height))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(width: width, height: height)
+        .onAppear { sprites.load() }
+        .accessibilityLabel(Text("Claude is idle"))
+    }
+
+    private struct Pose {
+        let runs: [ClawdSprite.Run]
+        let palette: [Color]
+        /// Left edge of the sprite's box, in points from the start of the track.
+        let x: CGFloat
+        let facingLeft: Bool
+    }
+
+    /// Where Clawd is and what it shows at `time`: one leg turns to the side, walks across, turns
+    /// back and looks around; the next leg does the same the other way.
+    private func pose(walk: ClawdWalk, look: ClawdAnimation, scale: CGFloat, at time: TimeInterval) -> Pose {
+        let fps = walk.sprite.fps
+        let travel = max(0, width - walk.sprite.bounds.width * scale)
+        let introLength = Double(walk.intro.count) / fps
+        let moveLength = Double(travel / speed)
+        let outroLength = Double(walk.outro.count) / fps
+        let leg = introLength + moveLength + outroLength + look.total
+
+        let cycle = time.truncatingRemainder(dividingBy: 2 * leg)
+        let goingLeft = cycle >= leg
+        var t = cycle.truncatingRemainder(dividingBy: leg)
+        let start: CGFloat = goingLeft ? travel : 0
+        let end: CGFloat = goingLeft ? 0 : travel
+        let frame = { (frames: [ClawdWalk.Frame], time: Double) in frames[min(Int(time * fps), frames.count - 1)] }
+
+        if t < introLength {
+            return Pose(runs: frame(walk.intro, t), palette: walk.sprite.palette, x: start, facingLeft: goingLeft)
+        }
+        t -= introLength
+        if t < moveLength {
+            let runs = walk.steps[Int(t * fps) % walk.steps.count]
+            let x = start + (end - start) * CGFloat(t / moveLength)
+            return Pose(runs: runs, palette: walk.sprite.palette, x: x, facingLeft: goingLeft)
+        }
+        t -= moveLength
+        if t < outroLength {
+            return Pose(runs: frame(walk.outro, t), palette: walk.sprite.palette, x: end, facingLeft: goingLeft)
+        }
+        t -= outroLength
+        let (sprite, runs) = look.frame(at: t)
+        return Pose(runs: runs, palette: sprite.palette, x: end, facingLeft: false)
+    }
+
+    private func draw(_ pose: Pose, scale: CGFloat, in canvas: GraphicsContext, size: CGSize) {
+        // Every pose stands on the bottom edge, around the same anchor as the Walking sprite.
+        let anchorX = pose.x - (sprites.walk?.sprite.bounds.minX ?? 0) * scale
+        for run in pose.runs {
+            let minX = pose.facingLeft ? -run.rect.maxX : run.rect.minX
+            let rect = CGRect(
+                x: anchorX + minX * scale, y: size.height + run.rect.minY * scale,
+                width: run.rect.width * scale, height: run.rect.height * scale)
+            canvas.fill(Path(rect), with: .color(pose.palette[run.color]))
         }
     }
 }

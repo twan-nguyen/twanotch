@@ -15,10 +15,12 @@ struct NotchHeader: View {
     @ObservedObject var hardware = HardwareCapabilities.shared
     @StateObject var tvm = ShelfStateViewModel.shared
     @Default(.showClaudeUsage) var showClaudeUsage
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         HStack(spacing: 0) {
             HStack {
-                if ((!tvm.isEmpty || coordinator.alwaysShowTabs) && Defaults[.shelfEnabled]) || showClaudeUsage {
+                if showsTabBar {
                     TabSelectionView()
                 } else if vm.notchState == .open {
                     EmptyView()
@@ -26,7 +28,7 @@ struct NotchHeader: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .opacity(vm.notchState == .closed ? 0 : 1)
-            .blur(radius: vm.notchState == .closed ? 20 : 0)
+            .blur(radius: vm.notchState == .closed && !reduceMotion ? 20 : 0)
             .zIndex(2)
 
             if vm.notchState == .open {
@@ -45,39 +47,16 @@ struct NotchHeader: View {
                             .transition(.scale(scale: 0.8).combined(with: .opacity))
                     } else {
                         if Defaults[.showMirror] && hardware.showsMirror {
-                            Button(action: {
+                            NotchIconButton(systemName: "web.camera", help: "Mirror") {
                                 vm.toggleCameraPreview()
-                            }) {
-                                Capsule()
-                                    .fill(.black)
-                                    .frame(width: 30, height: 30)
-                                    .overlay {
-                                        Image(systemName: "web.camera")
-                                            .foregroundColor(.white)
-                                            .padding()
-                                            .imageScale(.medium)
-                                    }
                             }
-                            .buttonStyle(PlainButtonStyle())
                         }
                         if Defaults[.settingsIconInNotch] {
-                            Button(action: {
+                            NotchIconButton(systemName: "gear", help: "Settings") {
                                 DispatchQueue.main.async {
                                     SettingsWindowController.shared.showWindow()
                                 }
-                                
-                            }) {
-                                Capsule()
-                                    .fill(.black)
-                                    .frame(width: 30, height: 30)
-                                    .overlay {
-                                        Image(systemName: "gear")
-                                            .foregroundColor(.white)
-                                            .padding()
-                                            .imageScale(.medium)
-                                    }
                             }
-                            .buttonStyle(PlainButtonStyle())
                         }
                         if Defaults[.showBatteryIndicator] && hardware.showsBattery {
                             NotchBatteryView(
@@ -97,7 +76,7 @@ struct NotchHeader: View {
             .font(.system(.headline, design: .rounded))
             .frame(maxWidth: .infinity, alignment: .trailing)
             .opacity(vm.notchState == .closed ? 0 : 1)
-            .blur(radius: vm.notchState == .closed ? 20 : 0)
+            .blur(radius: vm.notchState == .closed && !reduceMotion ? 20 : 0)
             .zIndex(2)
         }
         .foregroundColor(.gray)

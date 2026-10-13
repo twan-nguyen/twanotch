@@ -2,19 +2,24 @@
 //  ClaudeUsageView.swift
 //  Twanotch
 //
-//  The Claude tab: plan usage windows with their reset times.
+//  The Claude tab: Clawd with what Claude is doing, beside the plan's usage limits.
 //
 
+import Defaults
 import SwiftUI
 
 struct ClaudeUsageView: View {
     @ObservedObject private var manager = ClaudeUsageManager.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(alignment: .top, spacing: NotchTheme.Spacing.section) {
+            ClaudeStatusPanel()
+                .frame(width: 150)
             content
-                .frame(maxHeight: .infinity)
-            footer
+                .padding(.horizontal, 12)
+                .padding(.vertical, NotchTheme.Spacing.item)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(RoundedRectangle(cornerRadius: NotchTheme.Radius.card).fill(NotchTheme.Fill.card))
         }
         .padding(.horizontal, 4)
         .padding(.bottom, 4)
@@ -30,11 +35,16 @@ struct ClaudeUsageView: View {
     @ViewBuilder
     private var content: some View {
         if let usage = manager.usage, !usage.windows.isEmpty {
-            HStack(spacing: 10) {
-                ForEach(usage.windows) { window in
-                    ClaudeUsageCard(window: window)
+            // The rows spread over the card but can close up to fit three limits.
+            VStack(spacing: 0) {
+                ForEach(Array(usage.windows.enumerated()), id: \.element.id) { index, window in
+                    if index > 0 {
+                        Spacer(minLength: NotchTheme.Spacing.tight)
+                    }
+                    ClaudeUsageRow(window: window)
                 }
             }
+            .frame(maxHeight: .infinity)
         } else if let problem = manager.problem {
             ClaudeUsageProblemView(problem: problem)
         } else if manager.usage != nil {
@@ -44,103 +54,192 @@ struct ClaudeUsageView: View {
                 detail: "Claude did not return any usage windows for this account."
             )
         } else {
-            HStack(spacing: 10) {
+            VStack(spacing: NotchTheme.Spacing.section) {
                 ForEach(0..<2, id: \.self) { _ in
-                    ShimmerSkeleton(cornerRadius: 12)
+                    ShimmerSkeleton()
+                        .frame(height: 30)
                 }
             }
+            .frame(maxHeight: .infinity)
             .accessibilityLabel("Loading Claude usage")
         }
     }
+}
 
-    private var footer: some View {
-        HStack(spacing: 6) {
-            ClaudeMascot()
-                .fill(ClaudeMascot.tint)
-                .frame(width: 15, height: 10)
-            Text("Claude")
-                .foregroundStyle(.white)
-            if let plan = manager.usage?.plan {
-                Text(plan)
-                    .font(.caption2.weight(.semibold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(Capsule().fill(Color.white.opacity(0.1)))
+/// Clawd and what Claude is up to, with the plan and when usage was last read.
+private struct ClaudeStatusPanel: View {
+    @ObservedObject private var manager = ClaudeUsageManager.shared
+    @ObservedObject private var prompts = ClaudePromptCenter.shared
+    @Default(.answerClaudeInNotch) private var answerClaudeInNotch
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ClawdView(activity: prompts.activity, size: CGSize(width: 46, height: 32))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            HStack(spacing: 6) {
+                Text("Claude")
+                    .font(.headline)
+                    .foregroundStyle(NotchTheme.primaryText)
+                if let plan = manager.usage?.plan {
+                    Text(plan)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(NotchTheme.secondaryText)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(NotchTheme.Fill.track))
+                        .lineLimit(1)
+                }
             }
 
-            Spacer(minLength: 8)
+            // Claude Code only reports what it is doing through the hooks the notch installs.
+            if answerClaudeInNotch {
+                activityLine
+            }
 
-            if manager.usage != nil, let problem = manager.problem {
-                Label(problem.shortTitle, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+            HStack(spacing: 4) {
+                if manager.usage != nil, let problem = manager.problem {
+                    Label(problem.shortTitle, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(NotchTheme.warning)
+                        .lineLimit(1)
+                } else if let lastUpdated = manager.lastUpdated {
+                    // Minutes, not seconds: a label ticking every second keeps shifting the text.
+                    TimelineView(.everyMinute) { context in
+                        updatedLabel(lastUpdated, now: context.date)
+                    }
                     .lineLimit(1)
-            } else if let lastUpdated = manager.lastUpdated {
-                Text("Updated \(Text(lastUpdated, style: .relative)) ago")
-                    .lineLimit(1)
+                    .monospacedDigit()
+                }
+                Spacer(minLength: 0)
+                refreshButton
             }
+            .font(.caption2)
+            .foregroundStyle(NotchTheme.secondaryText)
+        }
+        .padding(.horizontal, NotchTheme.Spacing.section)
+        .padding(.vertical, NotchTheme.Spacing.item)
+        .frame(maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: NotchTheme.Radius.card).fill(NotchTheme.Fill.card))
+    }
 
-            Button {
-                Task { await manager.refresh(manual: true) }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .rotationEffect(.degrees(manager.isLoading ? 360 : 0))
-                    .animation(
-                        manager.isLoading ? .linear(duration: 0.9).repeatForever(autoreverses: false) : .default,
-                        value: manager.isLoading
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(manager.isLoading)
-            .help("Refresh")
-            .accessibilityLabel("Refresh Claude usage")
+    private func updatedLabel(_ date: Date, now: Date) -> Text {
+        guard now.timeIntervalSince(date) >= 60 else { return Text("Updated just now") }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        // Match the language the interface is shown in, which can differ from the system's.
+        formatter.locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
+        return Text("Updated \(formatter.localizedString(for: date, relativeTo: now))")
+    }
+
+    private var activityLine: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(activityColor)
+                .frame(width: 6, height: 6)
+            activityText
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .font(.caption)
-        .foregroundStyle(.gray)
+        .foregroundStyle(prompts.activity == .idle ? NotchTheme.secondaryText : NotchTheme.primaryText)
+        .animation(.smooth, value: prompts.activity)
+    }
+
+    private var activityText: Text {
+        switch prompts.activity {
+        case .idle: Text("Idle")
+        case .waiting: Text("Waiting for you")
+        case .working:
+            prompts.workingSessions.count > 1
+                ? Text("Working · \(prompts.workingSessions.count) sessions")
+                : Text("Working")
+        }
+    }
+
+    private var activityColor: Color {
+        switch prompts.activity {
+        case .idle: NotchTheme.secondaryText
+        case .working: .green
+        case .waiting: ClaudeMascot.tint
+        }
+    }
+
+    private var refreshButton: some View {
+        Button {
+            Task { await manager.refresh(manual: true) }
+        } label: {
+            Image(systemName: "arrow.clockwise")
+                .rotationEffect(.degrees(manager.isLoading && !reduceMotion ? 360 : 0))
+                .opacity(manager.isLoading && reduceMotion ? 0.5 : 1)
+                .animation(
+                    manager.isLoading && !reduceMotion
+                        ? .linear(duration: 0.9).repeatForever(autoreverses: false) : .default,
+                    value: manager.isLoading
+                )
+                .frame(width: 16, height: 16)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(manager.isLoading)
+        .help("Refresh")
+        .accessibilityLabel("Refresh Claude usage")
     }
 }
 
-private struct ClaudeUsageCard: View {
+/// One usage limit on a line: its name and reset time above, what is left as a bar and a percentage.
+private struct ClaudeUsageRow: View {
     let window: ClaudeUsageWindow
 
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.gray)
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(NotchTheme.primaryText)
+                    .lineLimit(1)
+                Spacer(minLength: NotchTheme.Spacing.item)
+                resetLabel
+                    .font(.caption2)
+                    .foregroundStyle(NotchTheme.secondaryText)
+                    .lineLimit(1)
+            }
 
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+            HStack(spacing: NotchTheme.Spacing.item) {
+                remainingBar
                 Text("\(Int(window.remainingPercent.rounded()))%")
-                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(window.remainingTint ?? NotchTheme.primaryText)
                     .contentTransition(.numericText())
-                Text("left")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
+                    .frame(width: 38, alignment: .trailing)
             }
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.1))
-                    Capsule()
-                        .fill(window.remainingTint ?? ClaudeMascot.tint)
-                        .frame(width: geo.size.width * window.remainingPercent / 100)
-                }
-            }
-            .frame(height: 5)
-
-            resetLabel
-                .font(.caption2)
-                .foregroundStyle(.gray)
-                .lineLimit(1)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
         .animation(.smooth, value: window.usedPercent)
         .accessibilityElement(children: .combine)
+    }
+
+    /// What is left, with a tick where an even pace through the window would be now.
+    private var remainingBar: some View {
+        let pace = window.evenPaceRemaining()
+        return GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(NotchTheme.Fill.track)
+                    .frame(height: 5)
+                Capsule()
+                    .fill(window.remainingTint ?? ClaudeMascot.tint)
+                    .frame(width: geo.size.width * window.remainingPercent / 100, height: 5)
+                if let pace {
+                    Capsule()
+                        .fill(NotchTheme.primaryText.opacity(0.8))
+                        .frame(width: 2, height: 9)
+                        .offset(x: min(max(geo.size.width * pace / 100 - 1, 0), geo.size.width - 2))
+                }
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .frame(height: 9)
+        .help(pace.map { Text("At an even pace, \(Int($0.rounded()))% would be left now") } ?? Text(""))
     }
 
     private var title: LocalizedStringKey {
@@ -150,8 +249,6 @@ private struct ClaudeUsageCard: View {
         case .model(let name): "Weekly · \(name)"
         }
     }
-
-
 
     @ViewBuilder
     private var resetLabel: some View {
@@ -207,10 +304,10 @@ private struct ClaudeUsageMessage: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(NotchTheme.primaryText)
                 Text(detail)
                     .font(.caption)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(NotchTheme.secondaryText)
                     .lineLimit(2)
             }
             Spacer(minLength: 0)
@@ -274,6 +371,21 @@ extension ClaudeUsageWindow {
         100 - usedPercent
     }
 
+    /// How long the window lasts before it resets.
+    var duration: TimeInterval {
+        switch kind {
+        case .session: 5 * 60 * 60
+        case .weekly, .model: 7 * 24 * 60 * 60
+        }
+    }
+
+    /// The percentage that would be left now if usage were spread evenly until the reset;
+    /// nil while the window has not started.
+    func evenPaceRemaining(at now: Date = .now) -> Double? {
+        guard let resetsAt, resetsAt > now else { return nil }
+        return min(max(resetsAt.timeIntervalSince(now) / duration, 0), 1) * 100
+    }
+
     /// Warning color once little is left; `nil` while there is plenty.
     var remainingTint: Color? {
         switch remainingPercent {
@@ -292,23 +404,11 @@ struct ClaudeClosedNotchPercent: View {
         Text("\(Int(window.remainingPercent.rounded()))%")
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .monospacedDigit()
-            .foregroundStyle(window.remainingTint ?? .white)
+            .foregroundStyle(window.remainingTint ?? NotchTheme.primaryText)
             .lineLimit(1)
-            .fixedSize()
+            // "100%" only just fits the space beside the notch, so let it shrink rather than clip.
+            .minimumScaleFactor(0.75)
             .contentTransition(.numericText())
             .accessibilityLabel(Text("Claude 5-hour session: \(Int(window.remainingPercent.rounded()))% left"))
-    }
-}
-
-/// The mascot and the session's remaining percentage, shown left of the music activity.
-struct ClaudeClosedNotchBadge: View {
-    let window: ClaudeUsageWindow
-    @ObservedObject private var prompts = ClaudePromptCenter.shared
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ClawdView(activity: prompts.activity, size: CGSize(width: 18, height: 13))
-            ClaudeClosedNotchPercent(window: window)
-        }
     }
 }

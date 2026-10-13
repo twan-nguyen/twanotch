@@ -76,20 +76,10 @@ struct AlbumArtView: View {
         Rectangle()
             .aspectRatio(1, contentMode: .fit)
             .foregroundColor(Color.black)
-            // The paused dimming would hide the empty-state skeleton.
-            .opacity(musicManager.isPlaying || musicManager.hasNoMediaSource ? 0 : 0.8)
+            .opacity(musicManager.isPlaying ? 0 : 0.8)
             .blur(radius: 50)
     }
                 
-
-    @ViewBuilder
-    private var albumArtImage: some View {
-        if musicManager.hasNoMediaSource {
-            emptyAlbumArt
-        } else {
-            loadedAlbumArt
-        }
-    }
 
     private var albumArtCornerRadius: CGFloat {
         Defaults[.cornerRadiusScaling]
@@ -97,20 +87,7 @@ struct AlbumArtView: View {
             : MusicPlayerImageSizes.cornerRadiusInset.closed
     }
 
-    private var emptyAlbumArt: some View {
-        ShimmerSkeleton(cornerRadius: albumArtCornerRadius)
-            .aspectRatio(1, contentMode: .fit)
-            .overlay {
-                Image(systemName: "music.note")
-                    .font(.system(size: 30, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.25))
-            }
-            .matchedGeometryEffect(id: "albumArt", in: albumArtNamespace)
-            .accessibilityElement()
-            .accessibilityLabel("Not playing")
-    }
-
-    private var loadedAlbumArt: some View {
+    private var albumArtImage: some View {
         Image(nsImage: musicManager.albumArt)
             .resizable()
             .aspectRatio(1, contentMode: .fit)
@@ -156,28 +133,12 @@ struct MusicControlsView: View {
     private var songInfoAndSlider: some View {
         GeometryReader { geo in
             VStack(alignment: .leading, spacing: 4) {
-                songInfo(width: geo.size.width)
+                trackInfo(width: geo.size.width)
                 musicSlider
             }
         }
         .padding(.top, 10)
         .padding(.leading, 5)
-    }
-
-    @ViewBuilder
-    private func songInfo(width: CGFloat) -> some View {
-        if musicManager.hasNoMediaSource {
-            // Same height as the title and artist lines, so the slider stays where it is.
-            VStack(alignment: .leading, spacing: 8) {
-                ShimmerSkeleton().frame(width: width * 0.7, height: 13)
-                ShimmerSkeleton().frame(width: width * 0.42, height: 11)
-            }
-            .frame(height: 40, alignment: .leading)
-            .accessibilityElement()
-            .accessibilityLabel("Not playing")
-        } else {
-            trackInfo(width: width)
-        }
     }
 
     private func trackInfo(width: CGFloat) -> some View {
@@ -462,6 +423,7 @@ struct VolumeControlView: View {
 
 struct NotchHomeView: View {
     @EnvironmentObject var vm: NotchViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var webcamManager = WebcamManager.shared
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var coordinator = NotchViewCoordinator.shared
@@ -481,13 +443,33 @@ struct NotchHomeView: View {
         Defaults[.showMirror] && webcamManager.cameraAvailable && vm.isCameraExpanded
     }
 
+    @ObservedObject private var musicManager = MusicManager.shared
+
+    /// The player only takes room while there is something playing or paused.
+    private var showsPlayer: Bool { !musicManager.hasNoMediaSource }
+
+    private var calendarWidth: CGFloat? {
+        if !showsPlayer { return nil }
+        return shouldShowCamera ? 170 : 215
+    }
+
     private var mainContent: some View {
         HStack(alignment: .top, spacing: (shouldShowCamera && Defaults[.showCalendar]) ? 10 : 15) {
-            MusicPlayerView(albumArtNamespace: albumArtNamespace)
+            if showsPlayer {
+                MusicPlayerView(albumArtNamespace: albumArtNamespace)
+                    .transition(.opacity)
+            } else if !Defaults[.showCalendar] {
+                // Only reached when Home is the only tab turned on.
+                Label("Nothing playing", systemImage: "music.note")
+                    .font(.callout)
+                    .foregroundStyle(NotchTheme.secondaryText)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
 
             if Defaults[.showCalendar] {
                 CalendarView()
-                    .frame(width: shouldShowCamera ? 170 : 215)
+                    .frame(width: calendarWidth)
+                    .frame(maxWidth: calendarWidth == nil ? .infinity : nil)
                     .onHover { isHovering in
                         vm.isHoveringCalendar = isHovering
                     }
@@ -499,12 +481,12 @@ struct NotchHomeView: View {
                 CameraPreviewView(webcamManager: webcamManager)
                     .scaledToFit()
                     .opacity(vm.notchState == .closed ? 0 : 1)
-                    .blur(radius: vm.notchState == .closed ? 20 : 0)
+                    .blur(radius: vm.notchState == .closed && !reduceMotion ? 20 : 0)
                     .animation(.interactiveSpring(response: 0.32, dampingFraction: 0.76, blendDuration: 0), value: shouldShowCamera)
             }
         }
         .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))
-        .blur(radius: vm.notchState == .closed ? 30 : 0)
+        .blur(radius: vm.notchState == .closed && !reduceMotion ? 30 : 0)
     }
 }
 
@@ -623,10 +605,11 @@ struct CustomSlider: View {
 struct ShimmerSkeleton: View {
     var cornerRadius: CGFloat = 6
     @State private var phase: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius)
-            .fill(Color.white.opacity(0.08))
+            .fill(NotchTheme.Fill.card)
             .overlay {
                 GeometryReader { geo in
                     let bandWidth = geo.size.width * 0.6
@@ -641,10 +624,18 @@ struct ShimmerSkeleton: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .onAppear {
-                withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
-                    phase = 1
-                }
+            .onAppear(perform: updateSweep)
+            .onChange(of: reduceMotion, updateSweep)
+    }
+
+    /// With Reduce Motion the highlight stays put at the start of the block.
+    private func updateSweep() {
+        if reduceMotion {
+            withAnimation(nil) { phase = 0 }
+        } else {
+            withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
+                phase = 1
             }
+        }
     }
 }

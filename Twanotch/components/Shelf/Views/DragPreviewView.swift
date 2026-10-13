@@ -11,7 +11,7 @@ struct DragPreviewView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: NotchTheme.Radius.card))
 
             Text(displayName)
                 .font(.system(size: 12, weight: .medium))

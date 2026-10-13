@@ -62,34 +62,71 @@ struct ContentView: View {
         )
     }
 
-    private var computedChinWidth: CGFloat {
-        var chinWidth: CGFloat = vm.closedNotchSize.width
+    /// What the closed notch shows, in priority order. The layout and the chin width both read it.
+    private enum ClosedNotchContent {
+        case battery, inlineHUD, claudePrompt, music, claude(ClaudeUsageWindow), face, empty
+    }
 
+    private var closedContent: ClosedNotchContent { closedContent(showingInlineHUD: true) }
+
+    /// The inline HUD sits on top of the other activities for a moment, so the chin width
+    /// skips it and keeps the width of what is underneath.
+    private func closedContent(showingInlineHUD: Bool) -> ClosedNotchContent {
         if coordinator.expandingView.type == .battery && coordinator.expandingView.show
-            && vm.notchState == .closed && Defaults[.showPowerStatusNotifications]
-            && hardware.showsBattery
+            && Defaults[.showPowerStatusNotifications] && hardware.showsBattery
         {
-            chinWidth = 640
-        } else if showsClaudePrompt {
-            chinWidth += 2 * claudeSideWidth + 20
-        } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
-            && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle)
-            && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed
-        {
-            chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
-            if closedNotchClaudeSession != nil {
-                chinWidth += 2 * (claudeBadgeWidth + 8)
-            }
-        } else if showsClaudeActivity {
-            chinWidth += 2 * claudeSideWidth + 20
-        } else if !coordinator.expandingView.show && vm.notchState == .closed
-            && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace]
-            && !vm.hideOnClosed
-        {
-            chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
+            return .battery
         }
+        if showingInlineHUD && coordinator.sneakPeek.show && Defaults[.inlineHUD]
+            && coordinator.sneakPeek.type != .music && coordinator.sneakPeek.type != .battery
+        {
+            return .inlineHUD
+        }
+        if vm.hideOnClosed { return .empty }
+        // A Claude Code prompt waiting for an answer takes over the closed notch.
+        if claudePrompts.current != nil { return .claudePrompt }
 
-        return chinWidth
+        let hasPlayer = musicManager.isPlaying || !musicManager.isPlayerIdle
+        if (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
+            && hasPlayer && coordinator.musicLiveActivityEnabled
+        {
+            return .music
+        }
+        if !coordinator.expandingView.show && !hasPlayer {
+            // With no music, the Claude session gets the closed notch to itself.
+            if let session = closedNotchClaudeSession { return .claude(session) }
+            if showNotHumanFace { return .face }
+        }
+        return .empty
+    }
+
+    /// While music plays, light runs around the open notch and around the closed one showing the track.
+    private var showsMusicGlow: Bool {
+        guard musicManager.isPlaying else { return false }
+        if vm.notchState == .open { return true }
+        if case .music = closedContent { return true }
+        return false
+    }
+
+    private var computedChinWidth: CGFloat {
+        let width = vm.closedNotchSize.width
+        guard vm.notchState == .closed else { return width }
+        let sideWidth = 2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20
+
+        switch closedContent(showingInlineHUD: false) {
+        case .battery:
+            return 640
+        case .claudePrompt:
+            return width + 2 * claudeSideWidth + 20
+        case .claude:
+            return width + 2 * claudeWalkWidth + 20
+        case .music:
+            return width + sideWidth + (closedNotchClaudeSession != nil ? 2 * (claudeSlotWidth + 8) : 0)
+        case .face:
+            return width + sideWidth
+        case .inlineHUD, .empty:
+            return width
+        }
     }
 
     /// The Claude 5-hour session shown beside the closed notch, once it has loaded.
@@ -99,23 +136,13 @@ struct ContentView: View {
 
     /// Width of each side the Claude session takes beside the closed notch when it has it alone.
     private let claudeSideWidth: CGFloat = 32
-    /// Width of the mascot-and-percentage badge at the left of the music activity.
-    private let claudeBadgeWidth: CGFloat = 50
+    /// Width of each side of the closed notch while Clawd walks there with the session beside it.
+    private let claudeWalkWidth: CGFloat = 56
+    /// Width Clawd takes left of the album art, and the percentage right of the visualizer.
+    private let claudeSlotWidth: CGFloat = 28
     /// Clawd beside the closed notch, fitted inside the menu bar height.
     private var clawdSize: CGSize {
         CGSize(width: claudeSideWidth - 4, height: min(18, max(10, vm.effectiveClosedNotchHeight - 12)))
-    }
-
-    /// With no music, the Claude session gets the closed notch to itself.
-    private var showsClaudeActivity: Bool {
-        !coordinator.expandingView.show && vm.notchState == .closed
-            && !musicManager.isPlaying && musicManager.isPlayerIdle
-            && closedNotchClaudeSession != nil && !vm.hideOnClosed
-    }
-
-    /// A Claude Code prompt waiting for an answer takes over the closed notch.
-    private var showsClaudePrompt: Bool {
-        claudePrompts.current != nil && vm.notchState == .closed && !vm.hideOnClosed
     }
 
     /// With every display showing a notch, only the one under the pointer opens for a prompt.
@@ -135,8 +162,10 @@ struct ContentView: View {
         
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
+                // Open, the black shape fills the notch height even when the content is shorter,
+                // such as Home with only the calendar; otherwise it would sit centred below the top edge.
                 let mainLayout = NotchLayout()
-                    .frame(alignment: .top)
+                    .frame(maxHeight: vm.notchState == .open ? .infinity : nil, alignment: .top)
                     .padding(
                         .horizontal,
                         vm.notchState == .open
@@ -147,6 +176,16 @@ struct ContentView: View {
                     .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
                     .background(.black)
                     .clipShape(currentNotchShape)
+                    .overlay {
+                        if showsMusicGlow {
+                            MusicBorderGlow(
+                                shape: currentNotchShape,
+                                color: Color(nsColor: musicManager.avgColor).ensureMinimumBrightness(factor: 0.7),
+                                compact: vm.notchState == .closed)
+                            .transition(.opacity)
+                        }
+                    }
+                    .animation(.smooth, value: showsMusicGlow)
                     .overlay(alignment: .top) {
                         Rectangle()
                             .fill(.black)
@@ -163,7 +202,9 @@ struct ContentView: View {
                     )
                 
                 mainLayout
-                    .frame(height: vm.notchState == .open ? vm.notchSize.height : nil)
+                    // Top-aligned, so content taller than the notch spills below rather than
+                    // pushing the header up past the screen edge.
+                    .frame(height: vm.notchState == .open ? vm.notchSize.height : nil, alignment: .top)
                     .conditionalModifier(true) { view in
                         let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
                         let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
@@ -259,7 +300,13 @@ struct ContentView: View {
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
+        .onChange(of: musicManager.hasNoMediaSource) {
+            guard vm.notchState == .open else { return }
+            withAnimation(.smooth) { vm.moveOffHiddenTab() }
+        }
         .onChange(of: claudePrompts.current?.id) { previous, current in
+            vm.resetClaudePromptHeight()
+            withAnimation(animationSpring) { vm.refreshOpenNotchSize() }
             if current != nil, previous == nil, vm.notchState == .closed, !vm.hideOnClosed, opensForClaudePrompts {
                 doOpen()
             } else if current == nil, previous != nil, vm.notchState == .open, !isHovering,
@@ -313,53 +360,30 @@ struct ContentView: View {
                     .padding(.top, 40)
                     Spacer()
                 } else {
-                    if coordinator.expandingView.type == .battery && coordinator.expandingView.show
-                        && vm.notchState == .closed && Defaults[.showPowerStatusNotifications]
-            && hardware.showsBattery
-                    {
-                        HStack(spacing: 0) {
-                            HStack {
-                                Text(batteryModel.statusText)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white)
-                            }
-
-                            Rectangle()
-                                .fill(.black)
-                                .frame(width: vm.closedNotchSize.width + 10)
-
-                            HStack {
-                                NotchBatteryView(
-                                    batteryWidth: 30,
-                                    isCharging: batteryModel.isCharging,
-                                    isInLowPowerMode: batteryModel.isInLowPowerMode,
-                                    isPluggedIn: batteryModel.isPluggedIn,
-                                    levelBattery: batteryModel.levelBattery,
-                                    isForNotification: true
-                                )
-                            }
-                            .frame(width: 76, alignment: .trailing)
+                    if vm.notchState == .open {
+                        NotchHeader()
+                            .frame(height: max(24, vm.effectiveClosedNotchHeight))
+                            .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
+                    } else {
+                        switch closedContent {
+                        case .battery:
+                            BatteryNotification()
+                        case .inlineHUD:
+                            InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
+                                .transition(.opacity)
+                        case .claudePrompt:
+                            ClaudePromptActivity()
+                        case .music:
+                            MusicLiveActivity()
+                                .frame(alignment: .center)
+                        case .claude(let session):
+                            ClaudeLiveActivity(session: session)
+                        case .face:
+                            IdleFaceAnimation()
+                        case .empty:
+                            Rectangle().fill(.clear).frame(width: vm.closedNotchSize.width - 20, height: vm.effectiveClosedNotchHeight)
                         }
-                        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
-                      } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
-                          InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
-                              .transition(.opacity)
-                      } else if showsClaudePrompt {
-                          ClaudePromptActivity()
-                      } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
-                          MusicLiveActivity()
-                              .frame(alignment: .center)
-                      } else if showsClaudeActivity, let session = closedNotchClaudeSession {
-                          ClaudeLiveActivity(session: session)
-                      } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
-                          IdleFaceAnimation()
-                       } else if vm.notchState == .open {
-                           NotchHeader()
-                               .frame(height: max(24, vm.effectiveClosedNotchHeight))
-                               .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
-                       } else {
-                           Rectangle().fill(.clear).frame(width: vm.closedNotchSize.width - 20, height: vm.effectiveClosedNotchHeight)
-                       }
+                    }
 
                       if coordinator.sneakPeek.show {
                           if (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && !Defaults[.inlineHUD] && vm.notchState == .closed {
@@ -434,6 +458,34 @@ struct ContentView: View {
     }
 
     @ViewBuilder
+    func BatteryNotification() -> some View {
+        HStack(spacing: 0) {
+            HStack {
+                Text(batteryModel.statusText)
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+            }
+
+            Rectangle()
+                .fill(.black)
+                .frame(width: vm.closedNotchSize.width + 10)
+
+            HStack {
+                NotchBatteryView(
+                    batteryWidth: 30,
+                    isCharging: batteryModel.isCharging,
+                    isInLowPowerMode: batteryModel.isInLowPowerMode,
+                    isPluggedIn: batteryModel.isPluggedIn,
+                    levelBattery: batteryModel.levelBattery,
+                    isForNotification: true
+                )
+            }
+            .frame(width: 76, alignment: .trailing)
+        }
+        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+    }
+
+    @ViewBuilder
     func IdleFaceAnimation() -> some View {
         HStack {
             HStack {
@@ -457,13 +509,18 @@ struct ContentView: View {
     @ViewBuilder
     func ClaudeLiveActivity(session: ClaudeUsageWindow) -> some View {
         HStack {
-            ClawdView(activity: claudePrompts.activity, size: clawdSize)
-                .frame(width: claudeSideWidth)
+            // Clawd strolls about while Claude is idle, and stays put at the laptop while it works.
+            if claudePrompts.activity == .idle {
+                ClawdWalker(width: claudeWalkWidth, height: clawdSize.height)
+            } else {
+                ClawdView(activity: claudePrompts.activity, size: clawdSize)
+                    .frame(width: claudeWalkWidth)
+            }
             Rectangle()
                 .fill(.black)
                 .frame(width: vm.closedNotchSize.width - 20)
             ClaudeClosedNotchPercent(window: session)
-                .frame(width: claudeSideWidth)
+                .frame(width: claudeWalkWidth)
         }
         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
     }
@@ -485,11 +542,11 @@ struct ContentView: View {
     @ViewBuilder
     func MusicLiveActivity() -> some View {
         HStack {
-            // The Claude badge sits on the far left; a matching blank on the far right keeps the
-            // black area centered on the physical notch.
-            if let session = closedNotchClaudeSession {
-                ClaudeClosedNotchBadge(window: session)
-                    .frame(width: claudeBadgeWidth, alignment: .leading)
+            // Clawd on the far left and the percentage on the far right take the same width,
+            // which keeps the black area centered on the physical notch.
+            if closedNotchClaudeSession != nil {
+                ClawdView(activity: claudePrompts.activity, size: CGSize(width: 18, height: 13))
+                    .frame(width: claudeSlotWidth)
             }
 
             Image(nsImage: musicManager.albumArt)
@@ -584,9 +641,9 @@ struct ContentView: View {
                 alignment: .center
             )
 
-            if closedNotchClaudeSession != nil {
-                Color.clear
-                    .frame(width: claudeBadgeWidth)
+            if let session = closedNotchClaudeSession {
+                ClaudeClosedNotchPercent(window: session)
+                    .frame(width: claudeSlotWidth)
             }
         }
         .frame(

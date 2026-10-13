@@ -28,6 +28,7 @@ final class YouTubeMusicHTTPClient: ObservableObject {
     
     // MARK: - Authentication
     func authenticate() async throws -> String {
+        // The client ID the YouTube Music app already approved; a new ID would ask the user to approve again.
         guard let url = URL(string: "\(baseURL)/auth/boringNotch") else {
             throw YouTubeMusicError.invalidURL
         }

@@ -11,8 +11,9 @@ import Foundation
 import JavaScriptCore
 
 enum ClawdSpriteReader {
-    /// LookingAround, Waving and Excited play while idle, Laptop while Claude works.
-    static let names = ["LookingAround", "Waving", "Excited", "Laptop"]
+    /// LookingAround, Waving and Excited play while idle, Laptop while Claude works, and Walking
+    /// carries Clawd along the closed notch.
+    static let names = ["LookingAround", "Waving", "Excited", "Laptop", "Walking"]
 
     private static let archivePaths = [
         "/Applications/Claude.app/Contents/Resources/app.asar",

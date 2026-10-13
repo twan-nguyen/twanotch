@@ -14,6 +14,10 @@ struct ShelfView: View {
     @StateObject var selection = ShelfSelectionModel.shared
     @StateObject private var quickLookService = QuickLookService()
     private let spacing: CGFloat = 8
+    @State private var isHoveringPanel = false
+
+    /// The empty shelf's icon comes alive while the pointer or a drag is over it.
+    private var isEmptyPanelActive: Bool { isHoveringPanel || vm.dragDetectorTargeting }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -59,13 +63,7 @@ struct ShelfView: View {
     }
 
     var panel: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .stroke(
-                vm.dragDetectorTargeting
-                    ? Color.accentColor.opacity(0.9)
-                    : Color.white.opacity(0.1),
-                style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [10])
-            )
+        NotchDropTargetBackground(cornerRadius: NotchTheme.Radius.panel, isTargeted: vm.dragDetectorTargeting)
             .overlay {
                 content
                     .padding()
@@ -75,20 +73,19 @@ struct ShelfView: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { selection.clear() }
+            .onHover { isHoveringPanel = $0 }
     }
 
     var content: some View {
         Group {
             if tvm.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "tray.and.arrow.down")
-                        .symbolVariant(.fill)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.white, .gray)
-                        .imageScale(.large)
-                    
+                VStack(spacing: NotchTheme.Spacing.section) {
+                    NotchIconBadge(isTargeted: isEmptyPanelActive) {
+                        ShelfTrayIcon(isAnimating: isEmptyPanelActive)
+                    }
+
                     Text("Drop files here")
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(vm.dragDetectorTargeting ? NotchTheme.primaryText : NotchTheme.secondaryText)
                         .font(.system(.title3, design: .rounded))
                         .fontWeight(.medium)
                 }
@@ -111,5 +108,26 @@ struct ShelfView: View {
         .onAppear {
             ShelfStateViewModel.shared.cleanupInvalidItems()
         }
+    }
+}
+
+/// The empty shelf's tray, its arrow dropping in about once a second while `isAnimating`;
+/// still with Reduce Motion.
+private struct ShelfTrayIcon: View {
+    var isAnimating: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var bounces = 0
+
+    var body: some View {
+        Image(systemName: "tray.and.arrow.down.fill")
+            .font(.system(size: 20, weight: .semibold))
+            .symbolEffect(.bounce.down, value: bounces)
+            .task(id: isAnimating && !reduceMotion) {
+                guard isAnimating && !reduceMotion else { return }
+                while !Task.isCancelled {
+                    bounces += 1
+                    try? await Task.sleep(for: .seconds(1.1))
+                }
+            }
     }
 }

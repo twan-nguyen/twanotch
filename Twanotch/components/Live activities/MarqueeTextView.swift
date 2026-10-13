@@ -34,6 +34,7 @@ struct MarqueeText: View {
     @State private var animate = false
     @State private var textSize: CGSize = .zero
     @State private var offset: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     init(_ text: Binding<String>, font: Font = .body, nsFont: NSFont.TextStyle = .body, textColor: Color = .primary, backgroundColor: Color = .clear, minDuration: Double = 3.0, frameWidth: CGFloat = 200) {
         _text = text
@@ -50,6 +51,24 @@ struct MarqueeText: View {
     }
     
     var body: some View {
+        if reduceMotion {
+            // Without scrolling, long text ends in an ellipsis instead.
+            Text(text)
+                .font(font)
+                .foregroundColor(textColor)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: frameWidth, alignment: .leading)
+                .background(backgroundColor)
+                // Fill the same space the scrolling version's GeometryReader takes.
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: NSFont.preferredFont(forTextStyle: nsFont).pointSize * 1.3)
+        } else {
+            scrollingText
+        }
+    }
+
+    private var scrollingText: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
                 HStack(spacing: 20) {

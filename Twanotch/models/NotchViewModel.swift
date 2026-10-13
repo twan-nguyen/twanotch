@@ -206,8 +206,9 @@ class NotchViewModel: NSObject, ObservableObject {
         {
             coordinator.currentView = .claude
         }
+        moveOffHiddenTab()
 
-        self.notchSize = openNotchSize
+        self.notchSize = currentOpenNotchSize
         self.notchState = .open
         coordinator.openNotchIDs.insert(ObjectIdentifier(self))
         
@@ -238,6 +239,44 @@ class NotchViewModel: NSObject, ObservableObject {
         } else if !coordinator.openLastTabByDefault {
             coordinator.currentView = .home
         }
+    }
+
+    /// Leaves a tab that is no longer offered, such as Home once nothing plays and the calendar is off.
+    func moveOffHiddenTab() {
+        let views = visibleNotchViews()
+        if !views.contains(coordinator.currentView), let first = views.first {
+            coordinator.currentView = first
+        }
+    }
+
+    /// Open height while a Claude prompt shows, fitted to its content.
+    private(set) var claudePromptHeight = OpenNotchHeight.claudePrompt
+
+    private var currentOpenNotchSize: CGSize {
+        guard ClaudePromptCenter.shared.current != nil else { return openNotchSize }
+        return CGSize(width: openNotchSize.width, height: claudePromptHeight)
+    }
+
+    /// A new prompt starts at full height, then fits itself with `fitClaudePrompt(freeSpace:)`.
+    func resetClaudePromptHeight() {
+        claudePromptHeight = OpenNotchHeight.claudePrompt
+    }
+
+    /// Shrinks the prompt by the room its scroll area leaves unused, or grows it when the content
+    /// needs more, staying between the tab height and `OpenNotchHeight.claudePrompt`.
+    func fitClaudePrompt(freeSpace: CGFloat) {
+        guard notchState == .open, ClaudePromptCenter.shared.current != nil else { return }
+        let target = (notchSize.height - freeSpace).rounded()
+        let height = min(max(target, openNotchSize.height), OpenNotchHeight.claudePrompt)
+        guard abs(height - claudePromptHeight) >= 1 else { return }
+        claudePromptHeight = height
+        refreshOpenNotchSize()
+    }
+
+    /// Resizes the open notch when a Claude prompt arrives, fits itself or is answered.
+    func refreshOpenNotchSize() {
+        guard notchState == .open, notchSize != currentOpenNotchSize else { return }
+        notchSize = currentOpenNotchSize
     }
 
     /// Re-reads the closed notch size for the current screen without touching shared coordinator state.

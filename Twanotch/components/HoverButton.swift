@@ -26,7 +26,7 @@ struct HoverButton: View {
                 .frame(width: size, height: size)
                 .overlay {
                     Capsule()
-                        .fill(isHovering ? Color.gray.opacity(0.2) : .clear)
+                        .fill(isHovering ? NotchTheme.Fill.hover : .clear)
                         .frame(width: size, height: size)
                         .overlay {
                             Image(systemName: icon)

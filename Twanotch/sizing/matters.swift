@@ -13,8 +13,17 @@ let downloadSneakSize: CGSize = .init(width: 65, height: 1)
 let batterySneakSize: CGSize = .init(width: 160, height: 1)
 
 let shadowPadding: CGFloat = 20
+/// Size of the open notch for the tabs; a Claude Code prompt fits its content, up to `OpenNotchHeight.claudePrompt`.
 let openNotchSize: CGSize = .init(width: 640, height: 190)
-let windowSize: CGSize = .init(width: openNotchSize.width, height: openNotchSize.height + shadowPadding)
+
+enum OpenNotchHeight {
+    /// The most a Claude Code prompt grows to for a whole command or a question with its options.
+    static let claudePrompt: CGFloat = 250
+    static let tallest = max(openNotchSize.height, claudePrompt)
+}
+
+/// The notch window fits the tallest open content; the transparent rest passes clicks through.
+let windowSize: CGSize = .init(width: openNotchSize.width, height: OpenNotchHeight.tallest + shadowPadding)
 let cornerRadiusInsets: (opened: (top: CGFloat, bottom: CGFloat), closed: (top: CGFloat, bottom: CGFloat)) = (opened: (top: 19, bottom: 24), closed: (top: 6, bottom: 14))
 
 enum MusicPlayerImageSizes {

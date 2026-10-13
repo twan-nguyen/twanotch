@@ -100,6 +100,7 @@ class TemporaryFileStorageService {
         let fm = FileManager.default
         let support = (try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
             ?? fm.temporaryDirectory
+        // Same folder as the saved shelf, which keeps its boring.notch name for earlier versions.
         return support
             .appendingPathComponent("boringNotch", isDirectory: true)
             .appendingPathComponent("ShelfFiles", isDirectory: true)

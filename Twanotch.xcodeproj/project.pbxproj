@@ -151,6 +151,8 @@
 		B1F747F92EC7E94000F841DB /* LottieView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F747F82EC7E94000F841DB /* LottieView.swift */; };
 		B1FEB4992C7686630066EBBC /* PanGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FEB4982C7686630066EBBC /* PanGesture.swift */; };
 		F38DE6482D8243E7008B5C6D /* BatteryActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DE6472D8243E2008B5C6D /* BatteryActivityManager.swift */; };
+		EB326F9A6B9BDACECDE34DF3 /* NotchTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABAFD945090F350D3483599F /* NotchTheme.swift */; };
+		860EDFECDEBE24D31A8CAFBC /* MusicBorderGlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C374906EA71303BFB10842B /* MusicBorderGlow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -325,6 +327,8 @@
 		B1F747F82EC7E94000F841DB /* LottieView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LottieView.swift; sourceTree = "<group>"; };
 		B1FEB4982C7686630066EBBC /* PanGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanGesture.swift; sourceTree = "<group>"; };
 		F38DE6472D8243E2008B5C6D /* BatteryActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryActivityManager.swift; sourceTree = "<group>"; };
+		ABAFD945090F350D3483599F /* NotchTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchTheme.swift; sourceTree = "<group>"; };
+		5C374906EA71303BFB10842B /* MusicBorderGlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicBorderGlow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -340,6 +344,7 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		112FB72F2CCF12CC0015238C /* private */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = private; sourceTree = "<group>"; };
 		11F748502EC9AABA00F841DB /* TwanotchXPCHelper */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (11F7485C2EC9AABA00F841DB /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = TwanotchXPCHelper; sourceTree = "<group>"; };
+		FB416F963B023CCE70992A46 /* Pages */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Pages; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -519,6 +524,7 @@
 				B17266E22C65F7FB0031BA0D /* WhatsNewView.swift */,
 				B10F84A22C6C9596009F3026 /* TestView.swift */,
 				507266DA2C908E2E00A2D00D /* HoverButton.swift */,
+				ABAFD945090F350D3483599F /* NotchTheme.swift */,
 				B1F747F82EC7E94000F841DB /* LottieView.swift */,
 			);
 			path = components;
@@ -717,6 +723,7 @@
 			children = (
 				B19424082CD0FEFE003E5DC2 /* LottieAnimationView.swift */,
 				147163972C5D35B70068B555 /* MusicVisualizer.swift */,
+				5C374906EA71303BFB10842B /* MusicBorderGlow.swift */,
 			);
 			path = Music;
 			sourceTree = "<group>";
@@ -741,6 +748,7 @@
 			isa = PBXGroup;
 			children = (
 				11F748832ECB27DC00F841DB /* MusicSlotConfigurationView.swift */,
+				FB416F963B023CCE70992A46 /* Pages */,
 				11C5E3152DFE88510065821E /* SettingsView.swift */,
 				98E3FB015006E53BED3F9BC8 /* SettingsChrome.swift */,
 				11C5E3112DFE85970065821E /* SettingsWindowController.swift */,
@@ -823,6 +831,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				112FB72F2CCF12CC0015238C /* private */,
+				FB416F963B023CCE70992A46 /* Pages */,
 			);
 			name = Twanotch;
 			packageProductDependencies = (
@@ -935,6 +944,7 @@
 				5955950D2E900ED800C66711 /* ApplicationRelauncher.swift in Sources */,
 				1100292A2E8691B400035A57 /* FileShareView.swift in Sources */,
 				147163982C5D35B70068B555 /* MusicVisualizer.swift in Sources */,
+				860EDFECDEBE24D31A8CAFBC /* MusicBorderGlow.swift in Sources */,
 				11CC44A22CEE614100C7244B /* NotchViewCoordinator.swift in Sources */,
 				B186543C2C6F49AE000B926A /* ShortcutConstants.swift in Sources */,
 				11A45C792E34E63100CEB175 /* MediaChecker.swift in Sources */,
@@ -1017,6 +1027,7 @@
 				110029272E84FD4C00035A57 /* TemporaryFileStorageService.swift in Sources */,
 				11CFC6652E09C7B300748C80 /* OnboardingFinishView.swift in Sources */,
 				507266DB2C908E2E00A2D00D /* HoverButton.swift in Sources */,
+				EB326F9A6B9BDACECDE34DF3 /* NotchTheme.swift in Sources */,
 				1471A8592C6281BD0058408D /* NotchWindow.swift in Sources */,
 				14CEF4182C5CAED300855D72 /* ContentView.swift in Sources */,
 				9A987A0D2C73CA66005CA465 /* ShelfView.swift in Sources */,

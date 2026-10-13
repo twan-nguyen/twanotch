@@ -37,7 +37,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .hud: "Replace the system volume and brightness indicators."
         case .battery: "Battery indicator and charging notifications."
         case .shelf: "Temporary file shelf, AirDrop and quick sharing."
-        case .claude: "Claude plan usage in the notch."
+        case .claude: "Claude plan usage and Claude Code prompts in the notch."
         case .shortcuts: "Keyboard shortcuts for controlling the notch."
         case .advanced: "Accent color, window behavior and extra options."
         case .about: "Version, credits and source code."

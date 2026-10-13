@@ -1151,6 +1151,16 @@
         }
       }
     },
+    "At an even pace, %lld%% would be left now" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nếu dùng đều thì lúc này còn %lld%%"
+          }
+        }
+      }
+    },
     "Claude Code did not report any usage" : {
       "localizations" : {
         "vi" : {
@@ -1211,6 +1221,16 @@
         }
       }
     },
+    "Claude plan usage and Claude Code prompts in the notch." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mức dùng gói Claude và trả lời Claude Code trong notch."
+          }
+        }
+      }
+    },
     "Could not update Claude Code settings: %@" : {
       "localizations" : {
         "vi" : {
@@ -1231,12 +1251,42 @@
         }
       }
     },
+    "Drop or click" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thả vào hoặc bấm"
+          }
+        }
+      }
+    },
     "Goes back to Claude Code when the time runs out" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hết giờ thì câu hỏi quay về Claude Code"
+          }
+        }
+      }
+    },
+    "Home" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trang chủ"
+          }
+        }
+      }
+    },
+    "Idle" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang rảnh"
           }
         }
       }
@@ -1257,6 +1307,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tiếp"
+          }
+        }
+      }
+    },
+    "Nothing playing" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có gì đang phát"
           }
         }
       }
@@ -1311,6 +1371,16 @@
         }
       }
     },
+    "This may not be undoable" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Có thể không hoàn tác được"
+          }
+        }
+      }
+    },
     "this project" : {
       "localizations" : {
         "vi" : {
@@ -1341,6 +1411,36 @@
         }
       }
     },
+    "Updated %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cập nhật %@"
+          }
+        }
+      }
+    },
+    "Updated just now" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cập nhật vừa xong"
+          }
+        }
+      }
+    },
+    "Waiting for you" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang chờ bạn"
+          }
+        }
+      }
+    },
     "wants to use %@" : {
       "localizations" : {
         "vi" : {
@@ -1357,6 +1457,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tuần · %@"
+          }
+        }
+      }
+    },
+    "Working" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang làm việc"
+          }
+        }
+      }
+    },
+    "Working · %lld sessions" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang làm · %lld phiên"
           }
         }
       }
@@ -25429,16 +25549,6 @@
         }
       }
     },
-    "Not playing" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chưa phát nhạc"
-          }
-        }
-      }
-    },
     "Loading Claude usage" : {
       "localizations" : {
         "vi" : {
@@ -25465,16 +25575,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claude không trả về hạn mức nào cho tài khoản này."
-          }
-        }
-      }
-    },
-    "Updated %@ ago" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cập nhật %@ trước"
           }
         }
       }
@@ -25655,16 +25755,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "còn lại"
-          }
-        }
-      }
-    },
-    "Claude plan usage in the notch." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mức dùng gói Claude trong notch."
           }
         }
       }
