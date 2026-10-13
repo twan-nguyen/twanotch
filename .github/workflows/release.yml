@@ -53,8 +53,8 @@ jobs:
       - name: Build
         run: |
           xcodebuild \
-            -project boringNotch.xcodeproj \
-            -scheme boringNotch \
+            -project Twanotch.xcodeproj \
+            -scheme Twanotch \
             -configuration Release \
             -destination "generic/platform=macOS" \
             -derivedDataPath "$DERIVED_DATA" \

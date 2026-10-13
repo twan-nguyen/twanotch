@@ -14,8 +14,8 @@ SIGN_KEYCHAIN="$HOME/Library/Keychains/twanotch-signing.keychain-db"
 
 echo "==> Building $APP_NAME (Release)"
 xcodebuild \
-  -project "$REPO_ROOT/boringNotch.xcodeproj" \
-  -scheme boringNotch \
+  -project "$REPO_ROOT/Twanotch.xcodeproj" \
+  -scheme Twanotch \
   -configuration Release \
   -derivedDataPath "$DERIVED_DATA" \
   -quiet \

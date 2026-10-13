@@ -82,7 +82,7 @@ brew install --cask twan-nguyen/tap/twanotch
 | Khoá EdDSA của Sparkle | Login keychain, account `twanotch` | Secret `SPARKLE_PRIVATE_KEY` |
 | Deploy key để đẩy cask | Không lưu trên máy | Secret `TAP_DEPLOY_KEY`, kèm deploy key có quyền ghi trên repo tap |
 
-Khoá công khai Sparkle nằm ở `SUPublicEDKey` trong [Info.plist](../boringNotch/Info.plist). Đọc lại bằng lệnh `generate_keys --account twanotch -p`. Công cụ `generate_keys` nằm trong `DerivedData/.../SourcePackages/artifacts/sparkle/Sparkle/bin/`.
+Khoá công khai Sparkle nằm ở `SUPublicEDKey` trong [Info.plist](../Twanotch/Info.plist). Đọc lại bằng lệnh `generate_keys --account twanotch -p`. Công cụ `generate_keys` nằm trong `DerivedData/.../SourcePackages/artifacts/sparkle/Sparkle/bin/`.
 
 Hiện không có bản sao lưu ngoài hai nơi trên. CI vẫn phát hành được kể cả khi máy hỏng, vì nó chỉ dùng secret.
 
@@ -108,10 +108,10 @@ Hiện không có bản sao lưu ngoài hai nơi trên. CI vẫn phát hành đ�
 
 ## Ghi chú phát triển
 
-- Cần macOS 15.6 trở lên và Xcode 26 trở lên. Mở `boringNotch.xcodeproj` rồi chạy scheme `boringNotch` để có bản debug.
-- Chuỗi giao diện nằm trong `boringNotch/Localizable.xcstrings`. Build bằng dòng lệnh không thêm chuỗi mới vào catalog. Sau khi thêm chữ trên giao diện, build một lần trong Xcode hoặc chạy `xcodebuild -exportLocalizations -project boringNotch.xcodeproj -localizationPath /tmp/twanotch-loc -exportLanguage vi`, rồi thêm bản dịch `vi`.
-- Icon gốc là [Configuration/branding/twanotch-icon.svg](../Configuration/branding/twanotch-icon.svg). Sửa xong thì tạo lại các PNG trong `boringNotch/Assets.xcassets/AppIcon.appiconset`, ví dụ bằng `rsvg-convert`.
-- `boringNotch.entitlements` phải có `com.apple.security.cs.disable-library-validation`, vì app không do team Apple ký và có link `MediaRemoteAdapter.framework`. Thiếu entitlement này app sẽ crash ngay khi mở với lỗi "different Team IDs".
+- Cần macOS 15.6 trở lên và Xcode 26 trở lên. Mở `Twanotch.xcodeproj` rồi chạy scheme `Twanotch` để có bản debug.
+- Chuỗi giao diện nằm trong `Twanotch/Localizable.xcstrings`. Build bằng dòng lệnh không thêm chuỗi mới vào catalog. Sau khi thêm chữ trên giao diện, build một lần trong Xcode hoặc chạy `xcodebuild -exportLocalizations -project Twanotch.xcodeproj -localizationPath /tmp/twanotch-loc -exportLanguage vi`, rồi thêm bản dịch `vi`.
+- Icon gốc là [Configuration/branding/twanotch-icon.svg](../Configuration/branding/twanotch-icon.svg). Sửa xong thì tạo lại các PNG trong `Twanotch/Assets.xcassets/AppIcon.appiconset`, ví dụ bằng `rsvg-convert`.
+- `Twanotch.entitlements` phải có `com.apple.security.cs.disable-library-validation`, vì app không do team Apple ký và có link `MediaRemoteAdapter.framework`. Thiếu entitlement này app sẽ crash ngay khi mở với lỗi "different Team IDs".
 
 ## Sự cố hay gặp
 
